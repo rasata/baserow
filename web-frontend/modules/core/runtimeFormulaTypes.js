@@ -4,6 +4,7 @@ import {
   TextBaserowRuntimeFormulaArgumentType,
   DateTimeBaserowRuntimeFormulaArgumentType,
   ObjectBaserowRuntimeFormulaArgumentType,
+  BooleanBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -84,7 +85,7 @@ export class RuntimeFormulaFunction extends Registerable {
    * @returns {boolean} - If the number is correct.
    */
   validateNumberOfArgs(args) {
-    return this.numArgs === null || args.length <= this.numArgs
+    return this.numArgs === null || args.length === this.numArgs
   }
 
   /**
@@ -913,10 +914,8 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    // Backend uses Python's datetime formatting syntax, e.g. `%Y-%m-%d %H:%M:%S`
-    // but I haven't yet found a way to replicate this in pure JS. Maybe
-    // we can rely on a 3rd party lib?
-    return 'TODO'
+    // TODO see: https://github.com/baserow/baserow/issues/4141
+    throw new Error("This formula function hasn't been implemented.")
   }
 
   getDescription() {
@@ -925,9 +924,7 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      "datetime_format('2025-10-16 11:05:38.547989', '%Y-%m-%d', 'Asia/Dubai') = '2025-10-16'",
-    ]
+    return ["datetime_format(now(), '%Y-%m-%d', 'Asia/Dubai') = '2025-10-16'"]
   }
 }
 
@@ -989,7 +986,8 @@ export class RuntimeMonth extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["month('2025-10-16 11:05:38') = '10'"]
+    // Month is 0 indexed
+    return ["month('2025-10-16 11:05:38') = '9'"]
   }
 }
 
@@ -1082,7 +1080,7 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["minute('2025-10-16 11:05:38') = '05'"]
+    return ["minute('2025-10-16T11:05:38') = '05'"]
   }
 }
 
@@ -1132,6 +1130,10 @@ export class RuntimeNow extends RuntimeFormulaFunction {
 
   execute(context, args) {
     return new Date()
+  }
+
+  getExamples() {
+    return ["now() = '2025-10-16 11:05:38'"]
   }
 }
 
@@ -1183,7 +1185,7 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    return new args[0][args[1]]()
+    return args[0][args[1]]
   }
 
   getDescription() {
@@ -1192,7 +1194,7 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['get_property(\'{"cherry": "red"}\', "fruit")']
+    return ["get_property('{\"cherry\": \"red\"}', 'cherry') = 'red'"]
   }
 }
 
@@ -1279,6 +1281,10 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.BOOLEAN
   }
 
+  validateNumberOfArgs(args) {
+    return args.length === 0
+  }
+
   execute(context, args) {
     return Math.random() < 0.5
   }
@@ -1306,6 +1312,10 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.TEXT
   }
 
+  validateNumberOfArgs(args) {
+    return args.length === 0
+  }
+
   execute(context, args) {
     return crypto.randomUUID()
   }
@@ -1317,5 +1327,47 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
 
   getExamples() {
     return ["generate_uuid() = '9b772ad6-08bc-4d19-958d-7f1c21a4f4ef'"]
+  }
+}
+
+export class RuntimeIf extends RuntimeFormulaFunction {
+  static getType() {
+    return 'if'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.CONDITION
+  }
+
+  validateNumberOfArgs(args) {
+    return args.length === 3
+  }
+
+  validateTypeOfArgs(args) {
+    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
+    if (!argType.test(args[0])) {
+      return args[0]
+    }
+    return null
+  }
+
+  execute(context, args) {
+    return args[0] ? args[1] : args[2]
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.ifDescription')
+  }
+
+  getExamples() {
+    return [
+      'if(true, true, false)',
+      "if(random_bool(), 'Random bool is true', 'Random bool is false')",
+    ]
   }
 }
