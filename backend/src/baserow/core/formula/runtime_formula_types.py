@@ -15,9 +15,11 @@ from baserow.core.formula.argument_types import (
     NumberBaserowRuntimeFormulaArgumentType,
     SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    TimezoneBaserowRuntimeFormulaArgumentType,
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
+from baserow.core.formula.utils.date import convert_date_format_moment_to_python
 from baserow.core.formula.validator import ensure_string
 
 
@@ -262,23 +264,32 @@ class RuntimeDateTimeFormat(RuntimeFormulaFunction):
     args = [
         DateTimeBaserowRuntimeFormulaArgumentType(),
         TextBaserowRuntimeFormulaArgumentType(),
-        TextBaserowRuntimeFormulaArgumentType(),
+        TimezoneBaserowRuntimeFormulaArgumentType(optional=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        tz_name = None
-        tz_format = "%Y-%m-%d %H:%M:%S"
+        datetime_obj = args[0]
+        moment_format = args[1]
 
-        if len(args) == 3:
-            tz_name = args[2]
-            tz_format = args[1]
-        elif len(args) == 2:
-            tz_format = args[1]
+        if (len(args)) == 2:
+            timezone_name = context.get_timezone_name()
+        else:
+            timezone_name = args[2]
 
-        if tz_name:
-            return args[0].replace(tzinfo=ZoneInfo(tz_name)).strftime(tz_format)
+        python_format = convert_date_format_moment_to_python(moment_format)
+        result = datetime_obj.astimezone(ZoneInfo(timezone_name)).strftime(
+            python_format
+        )
 
-        return args[0].strftime(tz_format)
+        if "SSS" in moment_format:
+            # When Moment's SSS is milliseconds (3 digits), but Python's %f
+            # is microseconds (6 digits). We need to replace the microseconds
+            # with milliseconds.
+            microseconds_str = f"{datetime_obj.microsecond:06d}"
+            milliseconds_str = f"{datetime_obj.microsecond // 1000:03d}"
+            result = result.replace(microseconds_str, milliseconds_str)
+
+        return result
 
 
 class RuntimeDay(RuntimeFormulaFunction):

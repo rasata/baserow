@@ -5,6 +5,7 @@ import {
   DateTimeBaserowRuntimeFormulaArgumentType,
   ObjectBaserowRuntimeFormulaArgumentType,
   BooleanBaserowRuntimeFormulaArgumentType,
+  TimezoneBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -16,6 +17,7 @@ import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFor
 import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
 import _ from 'lodash'
+import moment from '@baserow/modules/core/moment'
 
 export class RuntimeFormulaFunction extends Registerable {
   /**
@@ -85,7 +87,12 @@ export class RuntimeFormulaFunction extends Registerable {
    * @returns {boolean} - If the number is correct.
    */
   validateNumberOfArgs(args) {
-    return this.numArgs === null || args.length === this.numArgs
+    if (this.numArgs === null) return true
+
+    const requiredArgs = this.args.filter((arg) => !arg.optional).length
+    const totalArgs = this.args.length
+
+    return args.length >= requiredArgs && args.length <= totalArgs
   }
 
   /**
@@ -857,7 +864,7 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['even(12) = true']
+    return ['is_even(12) = true']
   }
 }
 
@@ -888,7 +895,7 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['odd(11) = true']
+    return ['is_odd(11) = true']
   }
 }
 
@@ -909,13 +916,18 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
     return [
       new DateTimeBaserowRuntimeFormulaArgumentType(),
       new TextBaserowRuntimeFormulaArgumentType(),
-      new TextBaserowRuntimeFormulaArgumentType(),
+      new TimezoneBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
 
   execute(context, args) {
-    // TODO see: https://github.com/baserow/baserow/issues/4141
-    throw new Error("This formula function hasn't been implemented.")
+    const [
+      datetime,
+      momentFormat,
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ] = args
+
+    return moment(datetime).tz(timezone).format(momentFormat)
   }
 
   getDescription() {
@@ -924,7 +936,11 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["datetime_format(now(), '%Y-%m-%d', 'Asia/Dubai') = '2025-10-16'"]
+    return [
+      "datetime_format(now(), 'YYYY-MM-DD') = '2025-11-03'",
+      "datetime_format(now(), 'YYYY-MM-DD', 'Europe/Amsterdam') = '2025-11-03'",
+      "datetime_format(now(), 'DD/MM/YYYY HH:mm:ss', 'UTC') = '03/11/2025 12:12:09'",
+    ]
   }
 }
 
