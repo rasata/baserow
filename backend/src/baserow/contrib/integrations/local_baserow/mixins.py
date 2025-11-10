@@ -23,6 +23,7 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.formula.validator import ensure_integer, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -267,7 +268,11 @@ class LocalBaserowTableServiceFilterableMixin:
             model_field = model._meta.get_field(field_name)
             view_filter_type = view_filter_type_registry.get(service_filter.type)
 
-            if service_filter.value_is_formula:
+            # We need this test for compatibility purposes with old values
+            if (
+                service_filter.value_is_formula
+                or service_filter.value["mode"] == BASEROW_FORMULA_MODE_RAW
+            ):
                 try:
                     resolved_value = ensure_string(
                         resolve_formula(
@@ -278,7 +283,8 @@ class LocalBaserowTableServiceFilterableMixin:
                     )
                 except Exception as exc:
                     raise ServiceImproperlyConfiguredDispatchException(
-                        f"The {field_name} service filter formula can't be resolved: {exc}"
+                        f"The {field_name} service filter formula can't be "
+                        "resolved: {exc}"
                     ) from exc
             else:
                 resolved_value = service_filter.value["formula"]
@@ -303,13 +309,18 @@ class LocalBaserowTableServiceFilterableMixin:
         yield from super().formula_generator(service)
 
         for service_filter in service.service_filters_with_untrashed_fields:
-            if service_filter.value_is_formula:
-                # Service types like LocalBaserowGetRow do not have a value attribute.
-                new_formula = yield service_filter.value
-                if new_formula is not None:
-                    # Set the new formula for the Service Filter
-                    service_filter.value = new_formula
-                    yield service_filter
+            is_formula = service_filter.value_is_formula
+            formula = BaserowFormulaObject.to_formula(service_filter.value)
+
+            if not is_formula:
+                formula["mode"] = BASEROW_FORMULA_MODE_RAW
+
+            # Service types like LocalBaserowGetRow do not have a value attribute.
+            new_formula = yield formula
+            if new_formula is not None:
+                # Set the new formula for the Service Filter
+                service_filter.value = new_formula
+                yield service_filter
 
     def get_table_queryset(
         self,

@@ -103,6 +103,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.cache import global_cache
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -210,7 +211,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         mapping = {
             field_obj["field"].db_column: field_obj["field"].name
-            for field_obj in self.get_table_field_objects(service)
+            for field_obj in self.get_table_field_objects(service) or []
         }
         return [mapping.get(f, f) for f in allowed_fields]
 
@@ -1801,7 +1802,7 @@ class LocalBaserowUpsertRowServiceType(
 
         # Return field_mapping formulas
         for field_mapping in service.field_mappings.all():
-            new_formula = yield field_mapping.value
+            new_formula = yield BaserowFormulaObject.to_formula(field_mapping.value)
             if new_formula is not None:
                 field_mapping.value = new_formula
                 yield field_mapping

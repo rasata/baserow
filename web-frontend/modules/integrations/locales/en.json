@@ -15,7 +15,7 @@
   },
   "aiIntegrationType": {
     "inheritingWorkspace": "Inheriting workspace AI settings",
-    "overridingProviders": "Overriding {count} provider | Overriding {count} providers"
+    "overridingProviders": "Overriding {count} provider|Overriding {count} providers"
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
@@ -63,7 +63,7 @@
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "corePeriodicErrorIntervalMissing": "An interval is required.",
     "errorIterationSourceMissing": "Missing source property",
-    "aiAgent": "AI Agent",
+    "aiAgent": "AI prompt",
     "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
     "errorNoIntegrationSelected": "No integration selected",
     "errorNoAIProviderSelected": "No AI provider selected",
@@ -87,13 +87,13 @@
     "overridden": "Overridden"
   },
   "aiAgentServiceForm": {
-    "integrationLabel": "AI Integration",
+    "integrationLabel": "Integration",
     "providerLabel": "AI Provider",
     "providerPlaceholder": "Select an AI provider...",
     "modelLabel": "AI Model",
     "modelPlaceholder": "Select a model...",
     "outputTypeLabel": "Output Type",
-    "outputTypeHelp": "Choose how the AI should format its response.",
+    "outputTypeHelp": "Choose how the AI should format its response. If you define choices, you force the model to respond only with one of those choices.",
     "outputTypeText": "Text",
     "outputTypeChoice": "Choice",
     "temperatureLabel": "Temperature",

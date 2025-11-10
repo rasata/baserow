@@ -10,6 +10,7 @@ from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
     BaserowFormulaVisitor,
 )
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
     BaserowFormulaObject,
     FormulaContext,
     FunctionCollection,
@@ -44,7 +45,10 @@ def resolve_formula(
 
     # If we receive a blank formula string, don't attempt to parse it.
     if not formula["formula"]:
-        return ""
+        return formula["formula"]
+
+    if formula["mode"] == BASEROW_FORMULA_MODE_RAW:
+        return formula["formula"]
 
     tree = get_parse_tree_for_formula(formula["formula"])
     return BaserowPythonExecutor(functions, formula_context).visit(tree)

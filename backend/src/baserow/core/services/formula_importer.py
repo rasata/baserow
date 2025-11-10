@@ -57,6 +57,7 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
             data_provider_type = self.get_data_provider_type_registry().get(
                 data_provider_name
             )
+
             unquoted_arg_list = data_provider_type.import_path(
                 path, self.id_mapping, **self.extra_context
             )
@@ -66,7 +67,8 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
         return f"{function_name}({','.join(args)})"
 
     def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
-        return ctx.getText()
+        args = [expr.accept(self) for expr in (ctx.expr())]
+        return f" {ctx.op.text} ".join(args)
 
     def visitFunc_name(self, ctx: BaserowFormula.Func_nameContext):
         return ctx.getText()

@@ -7,6 +7,8 @@ from django.db.models import QuerySet
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
+from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -28,9 +30,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.utils import MirrorDict, extract_allowed
-
-from .signals import automation_node_updated
+from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
@@ -275,6 +275,7 @@ class AutomationNodeHandler:
         serialized_nodes: List[AutomationNodeDict],
         id_mapping: Dict[str, Dict[int, int]],
         cache: Optional[Dict] = None,
+        progress: Optional[ChildProgressBuilder] = None,
         *args,
         **kwargs,
     ):
@@ -303,9 +304,22 @@ class AutomationNodeHandler:
                 *args,
                 **kwargs,
             )
-            imported_nodes.append([node_instance, serialized_node])
+            imported_nodes.append(node_instance)
 
-        return [i[0] for i in imported_nodes]
+            if progress:
+                progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+
+        # We migrate service formulas here to make sure all nodes are imported before
+        # we migrate them
+        for imported_node in imported_nodes:
+            service = imported_node.service.specific
+            updated_models = service.get_type().import_formulas(
+                service, id_mapping, import_formula, **kwargs
+            )
+
+            [u.save() for u in updated_models]
+
+        return imported_nodes
 
     def import_node_only(
         self,
@@ -362,10 +376,6 @@ class AutomationNodeHandler:
             # Return early if this is a simulated dispatch
             if until_node := dispatch_context.simulate_until_node:
                 if until_node.id == node.id:
-                    # sample_data was updated as it's a simulation we should tell to
-                    # the frontend
-                    node.service.refresh_from_db(fields=["sample_data"])
-                    automation_node_updated.send(self, user=None, node=node)
                     return
 
             if children := node.get_children():
