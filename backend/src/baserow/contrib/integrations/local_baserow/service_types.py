@@ -225,21 +225,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return super().sanitize_result(service, result, allowed_field_names)
 
-    def get_value_at_path(self, service: Service, context: Any, path: List[str]):
-        """
-        Convert the field name to a human name.
-        """
+    def prepare_value_path(self, service: Service, path: List[str]):
+        if len(path) < 1:
+            return path
 
-        if self.returns_list:
-            if len(path) < 2:
-                return super().get_value_at_path(service, context, path)
-
-            row_index, db_column, *rest = path
-        else:
-            if len(path) < 1:
-                return super().get_value_at_path(service, context, path)
-
-            db_column, *rest = path
+        db_column, *rest = path
 
         human_name = db_column
 
@@ -248,12 +238,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 human_name = field_obj["field"].name
                 break
 
-        if self.returns_list:
-            return super().get_value_at_path(
-                service, context, [row_index, human_name, *rest]
-            )
-        else:
-            return super().get_value_at_path(service, context, [human_name, *rest])
+        return [human_name, *rest]
 
     def build_queryset(
         self,
