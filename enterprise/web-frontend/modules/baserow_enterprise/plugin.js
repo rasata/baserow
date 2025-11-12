@@ -83,7 +83,10 @@ import {
   SupportPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
-import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
+import {
+  DateDependencyContextItemType,
+  DateDependencyTimelineComponent,
+} from '@baserow_enterprise/dateDependencyTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import {
@@ -249,10 +252,14 @@ export default (context) => {
       'paidFeature',
       new DateDependencyPaidFeature(context)
     )
+    app.$registry.register(
+      'timelineFieldRules',
+      new DateDependencyTimelineComponent(context)
+    )
   }
   app.$registry.register(
     'fieldContextItem',
-    new DateDepencencyContextItemType(context)
+    new DateDependencyContextItemType(context)
   )
 
   // Register builder page decorator namespace and types
