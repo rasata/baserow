@@ -8,6 +8,7 @@
         'assistant__message--human': message.role === 'human',
         'assistant__message--ai': message.role === 'ai',
         'assistant__message--error': message.error,
+        'assistant__message--reasoning': message.reasoning,
       }"
     >
       <div class="assistant__message-content">
@@ -21,12 +22,15 @@
             <span></span>
           </div>
           <template v-else>
-            <!-- eslint-disable vue/no-v-html -->
-            <div
-              class="assistant__message-text"
-              @click="interceptLinkClick"
-              v-html="formatMessage(message.content)"
-            ></div>
+            <div class="assistant__message-text-container">
+              <span v-if="message.reasoning" class="loading"></span>
+              <!-- eslint-disable vue/no-v-html -->
+              <div
+                class="assistant__message-text"
+                @click="interceptLinkClick"
+                v-html="formatMessage(message.content)"
+              ></div>
+            </div>
 
             <!-- Sources section - only show for AI messages with sources -->
             <AssistantMessageSources
