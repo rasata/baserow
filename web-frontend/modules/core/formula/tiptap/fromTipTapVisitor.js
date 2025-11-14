@@ -154,7 +154,7 @@ export class FromTipTapVisitor {
 
     // In advanced mode, we need to escape actual newlines in the text
     // to make them valid in string literals
-    cleanText = cleanText.replace(/\n/g, '\\n')
+    cleanText = cleanText.replace(/\n/g, '\n')
     return cleanText
   }
 
@@ -180,8 +180,12 @@ export class FromTipTapVisitor {
   }
 
   visitHardBreak(node) {
-    // In advanced mode, convert hard breaks to actual newline characters
-    // that will be part of the string literal
-    return '\n'
+    if (this.mode === 'advanced') {
+      // In advanced mode, hard breaks are literal newlines inside the text
+      return '\n'
+    } else {
+      // In simple mode, hard breaks represent newline strings in concat
+      return "'\\n'"
+    }
   }
 }
