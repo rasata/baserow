@@ -342,7 +342,10 @@ const actions = {
       throw error
     }
   },
-  async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
+  async replace(
+    { commit, dispatch, getters, rootGetters },
+    { workflow, nodeId, newType }
+  ) {
     const nodeToReplace = getters.findById(workflow, nodeId)
 
     const { data: newNode } = await AutomationWorkflowNodeService(
@@ -360,6 +363,15 @@ const actions = {
     })
 
     commit('DELETE_ITEM', { workflow, nodeId })
+
+    await dispatch(
+      'automationWorkflow/forceUpdate',
+      {
+        workflow,
+        values: { simulate_until_node_id: null },
+      },
+      { root: true }
+    )
 
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
