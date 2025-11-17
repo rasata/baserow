@@ -1,22 +1,20 @@
-## Baserow is an open-source no-code platform and the best alternative to Airtable
+## Baserow: build databases, automations, apps & agents with AI — no code
 
-### 🚨 Repository Migration Notice
-
-Baserow has moved from GitLab to GitHub. All issues have been successfully migrated,
-but merged and closed merge requests (PRs) were not imported. You can still browse the
-old repository and its history at: https://gitlab.com/baserow/baserow.
-
-Please use this GitHub repository  for all new issues, discussions, and contributions
-going forward at: https://github.com/baserow/baserow.
-
-It lets you easily build databases, applications, automations, and dashboards — all in
-one secure, self-hostable environment. Empower your team to create powerful tools
-without writing a single line of code.
+Baserow is the secure, open-source platform for building databases, applications,
+automations, and AI agents — all without code. Trusted by over 150,000 users, Baserow
+delivers enterprise-grade security with GDPR, HIPAA, and SOC 2 Type II compliance, plus
+cloud and self-hosted deployments for full data control. With a built-in AI Assistant
+that lets you create databases and workflows using natural language, Baserow empowers
+teams to structure data, automate processes, build internal tools, and create custom
+dashboards. Fully extensible and API-first, Baserow integrates seamlessly with your
+existing tools and performs at any scale.
 
 * A spreadsheet database hybrid combining ease of use and powerful data organization.
 * Create applications and portals, and publish them on your own domain.
-* Automate repetitive workflows with automations (coming soon).
+* Automate repetitive workflows with automations.
 * Visualize your data with dashboards.
+* Kuma, powerful AI-assistant to builds complete solutions.
+* GDPR, HIPAA, and SOC 2 Type II compliant.
 * Easily self-hosted with no storage restrictions or sign-up on https://baserow.io to
   get started immediately.
 * Best Alternative to Airtable.
@@ -30,20 +28,29 @@ without writing a single line of code.
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/baserow/baserow/tree/master)
 
 ```bash
-docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.35.3
+docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.0.0
 ```
 
 ![Baserow database screenshot](docs/assets/screenshot.png "Baserow database screenshot")
 
-![Baserow form screenshot](docs/assets/screenshot_form.png "Baserow form view screenshot")
+![Baserow form screenshot](docs/assets/screenshot_kuma_form.png "Baserow form view and Kuma screenshot")
 
 ![Baserow kanban screenshot](docs/assets/screenshot_kanban.png "Baserow kanban view screenshot")
 
 ![Baserow application builder](docs/assets/screenshot_application_builder.png "Baserow application builder screenshot")
 
 ![Baserow application builder](docs/assets/screenshot_automations.png "Baserow automations screenshot")
-(coming soon)
 
+![Baserow application builder](docs/assets/screenshot_dashboard.png "Baserow dashboard screenshot")
+
+## 🚨 Repository Migration Notice
+
+Baserow has moved from GitLab to GitHub. All issues have been successfully migrated,
+but merged and closed merge requests (PRs) were not imported. You can still browse the
+old repository and its history at: https://gitlab.com/baserow/baserow.
+
+Please use this GitHub repository  for all new issues, discussions, and contributions
+going forward at: https://github.com/baserow/baserow.
 
 ## Get Involved
 
@@ -109,7 +116,7 @@ Created by Baserow B.V. - bram@baserow.io.
 
 Distributes under the MIT license. See `LICENSE` for more information.
 
-Version: 1.35.3
+Version: 2.0.0
 
 The official repository can be found at https://github.com/baserow/baserow.
 
