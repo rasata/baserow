@@ -19,6 +19,10 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  get icon() {
+    return 'iconoir-question-mark'
+  }
+
   /**
    * Whether the service is valid.
    * @param service - The service object.
@@ -45,6 +49,13 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * Returns sample data for the given service.
+   */
+  getSampleData(service) {
+    return service.sample_data || null
+  }
+
+  /**
    * A hook called prior to an update to modify the new values
    * before they get persisted in the API.
    */
@@ -57,6 +68,13 @@ export class ServiceType extends Registerable {
    */
   getDescription(service, application) {
     return this.name
+  }
+
+  /**
+   * Allow to customize way data are accessed from service
+   */
+  prepareValuePath(service, path) {
+    return path
   }
 
   getOrder() {

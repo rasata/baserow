@@ -5,8 +5,6 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
@@ -56,12 +54,35 @@ class AutomationWorkflowService:
 
         return workflow
 
+    def list_workflows(
+        self, user: AbstractUser, automation_id: int
+    ) -> List[AutomationWorkflow]:
+        """
+        Lists all the workflows that belong to the given automation.
+
+        :param user: The user requesting the workflows.
+        :param automation_id: The automation to which the workflows belong.
+        :return: A list of AutomationWorkflow instances.
+        """
+
+        automation = AutomationHandler().get_automation(automation_id)
+
+        all_workflows = self.handler.get_workflows(
+            automation, base_queryset=AutomationWorkflow.objects
+        )
+
+        return CoreHandler().filter_queryset(
+            user,
+            ReadAutomationWorkflowOperationType.type,
+            all_workflows,
+            workspace=automation.workspace,
+        )
+
     def create_workflow(
         self,
         user: AbstractUser,
         automation_id: int,
         name: str,
-        auto_create_trigger: bool = True,
     ) -> AutomationWorkflow:
         """
         Returns a new instance of AutomationWorkflow.
@@ -69,8 +90,6 @@ class AutomationWorkflowService:
         :param user: The user trying to create the workflow.
         :param automation_id: The automation workflow belongs to.
         :param name: The name of the workflow.
-        :param auto_create_trigger: Whether to automatically create a
-            trigger for the workflow.
         :return: The newly created AutomationWorkflow instance.
         """
 
@@ -84,17 +103,6 @@ class AutomationWorkflowService:
         )
 
         workflow = self.handler.create_workflow(automation, name)
-
-        if auto_create_trigger:
-            from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-
-            trigger_type = automation_node_type_registry.get(
-                CorePeriodicTriggerNodeType.type
-            )
-            prepared_values = trigger_type.prepare_values({}, user)
-            AutomationNodeHandler().create_node(
-                trigger_type, workflow, **prepared_values
-            )
 
         automation_workflow_created.send(self, workflow=workflow, user=user)
 

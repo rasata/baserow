@@ -128,12 +128,35 @@ export class ViewFilterType extends Registerable {
   }
 
   /**
-   * Returns if a given field is compatible with this view filter or not. Uses the
-   * list provided by getCompatibleFieldTypes to calculate this.
+   * Returns if a given field is compatible with this view filter or not.
+   *
+   * Checks compatibility by resolving the field's canonical filter type via
+   * getCompatibleFilterFieldType(field) and then matching against
+   * this.compatibleFieldTypes (strings or predicates).
    */
   fieldIsCompatible(field) {
-    const valuesMap = this.getCompatibleFieldTypes().map((type) => [type, true])
-    return this.getCompatibleFieldValue(field, valuesMap, false)
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app.$registry.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
+
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
+    // Check static compatible list and predicates
+    for (const typeOrFunc of this.compatibleFieldTypes) {
+      if (typeOrFunc instanceof Function) {
+        if (typeOrFunc(field)) {
+          return true
+        }
+      } else if (compareType === typeOrFunc) {
+        return true
+      }
+    }
+
+    return false
   }
 
   /**
@@ -152,12 +175,21 @@ export class ViewFilterType extends Registerable {
    * @returns {any} The value that is compatible with the field or the notFoundValue.
    */
   getCompatibleFieldValue(field, valuesMap, notFoundValue = null) {
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app?.$registry?.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
     for (const [typeOrFunc, value] of valuesMap) {
       if (typeOrFunc instanceof Function) {
         if (typeOrFunc(field)) {
           return value
         }
-      } else if (field.type === typeOrFunc) {
+      } else if (compareType === typeOrFunc) {
         return value
       }
     }

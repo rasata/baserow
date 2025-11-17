@@ -48,6 +48,7 @@
         <div v-show="isValidRow(row)" class="timeline-grid__row">
           <!-- Pass strings instead of moment objects to prevent unnecessary re-renders -->
           <TimelineGridRow
+            ::ref="`row-${row.id}`"
             :label="getRowLabel(row)"
             :start-date="getRowDateValue(row, startDateField)?.format()"
             :end-date="getRowDateValue(row, endDateField)?.format()"
@@ -91,6 +92,12 @@
         />
       </div>
     </template>
+    <TimelineGridRowFieldRules
+      :rows="rowsBuffer"
+      :view="$parent.view"
+      :fields="$parent.fields"
+      :store-prefix="$parent.storePrefix"
+    />
   </div>
 </template>
 
@@ -99,12 +106,32 @@ import moment from '@baserow/modules/core/moment'
 import { getFieldTimezone } from '@baserow/modules/database/utils/date'
 import TimelineGridRow from '@baserow_premium/components/views/timeline/TimelineGridRow'
 import TimelineGridShowRowButton from '@baserow_premium/components/views/timeline/TimelineGridShowRowButton'
+import TimelineGridRowFieldRules from '@baserow_premium/components/views/timeline/TimelineGridRowFieldRules.vue'
 
 export default {
   name: 'TimelineGrid',
   components: {
+    TimelineGridRowFieldRules,
     TimelineGridRow,
     TimelineGridShowRowButton,
+  },
+  provide: function () {
+    const that = this
+    return {
+      getRowPosition: (rowItem) => {
+        if (!rowItem.item) {
+          return
+        }
+        const pos = that.getRowStyleProps(rowItem.item)
+        const out = {
+          left: pos.leftPadding + pos.left,
+          top: rowItem.position.top,
+          width: pos.width,
+          height: that.rowHeight,
+        }
+        return out
+      },
+    }
   },
   props: {
     columnsBuffer: {

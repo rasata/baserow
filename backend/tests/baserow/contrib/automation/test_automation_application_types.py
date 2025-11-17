@@ -33,12 +33,8 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
             "nodes": [
                 {
                     "id": 1,
-                    "type": "rows_created",
-                    "order": "1.00000000000000000000",
+                    "type": "local_baserow_rows_created",
                     "workflow_id": 1,
-                    "parent_node_id": None,
-                    "previous_node_id": None,
-                    "previous_node_output": "",
                     "service": {
                         "id": 549,
                         "integration_id": 1,
@@ -48,12 +44,8 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
                 },
                 {
                     "id": 2,
-                    "type": "create_row",
-                    "order": "2.00000000000000000000",
+                    "type": "local_baserow_create_row",
                     "workflow_id": 1,
-                    "parent_node_id": None,
-                    "previous_node_id": 1,
-                    "previous_node_output": "",
                     "service": {
                         "id": 550,
                         "integration_id": 1,
@@ -72,6 +64,7 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
                     },
                 },
             ],
+            "graph": {"0": 1, "1": {"next": {"": [2]}}, "2": {}},
         }
     ],
 }
@@ -82,7 +75,7 @@ def test_automation_export_serialized(data_fixture):
     user = data_fixture.create_user(email="test@baserow.io")
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     integration = trigger.service.specific.integration
     first_action = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow
@@ -116,12 +109,8 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": trigger.id,
                         "label": trigger.label,
-                        "type": "rows_created",
-                        "order": str(trigger.order),
+                        "type": "local_baserow_rows_created",
                         "workflow_id": trigger.workflow_id,
-                        "parent_node_id": trigger.parent_node_id,
-                        "previous_node_id": trigger.previous_node_id,
-                        "previous_node_output": trigger.previous_node_output,
                         "service": {
                             "id": trigger.service_id,
                             "integration_id": trigger.service.specific.integration_id,
@@ -133,23 +122,28 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": first_action.id,
                         "label": first_action.label,
-                        "type": "create_row",
-                        "order": str(first_action.order),
+                        "type": "local_baserow_create_row",
                         "workflow_id": first_action.workflow_id,
-                        "parent_node_id": first_action.parent_node_id,
-                        "previous_node_id": first_action.previous_node_id,
-                        "previous_node_output": first_action.previous_node_output,
                         "service": {
                             "id": first_action.service_id,
                             "integration_id": first_action.service.specific.integration_id,
                             "type": "local_baserow_upsert_row",
                             "table_id": first_action.service.specific.table_id,
-                            "row_id": "",
+                            "row_id": {
+                                "formula": "",
+                                "mode": "simple",
+                                "version": "0.1",
+                            },
                             "field_mappings": [],
                             "sample_data": None,
                         },
                     },
                 ],
+                "graph": {
+                    "0": trigger.id,
+                    str(trigger.id): {"next": {"": [first_action.id]}},
+                    str(first_action.id): {},
+                },
             }
         ],
     }
@@ -204,13 +198,20 @@ def test_automation_application_import(data_fixture):
     workflow = automation.workflows.first()
 
     assert workflow.automation_workflow_nodes.count() == 2
-    [trigger, action_node] = workflow.automation_workflow_nodes.order_by("order")
+    [trigger, action_node] = workflow.automation_workflow_nodes.order_by("id")
 
     assert isinstance(trigger.specific, LocalBaserowRowsCreatedTriggerNode)
 
     create_row_node = action_node.specific
     assert isinstance(create_row_node, LocalBaserowCreateRowActionNode)
-    assert create_row_node.previous_node_id == trigger.id
+
+    workflow.assert_reference(
+        {
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
+        }
+    )
 
     # Make sure the table/integration migrated properly.
     create_row_service = create_row_node.service.specific
@@ -221,7 +222,7 @@ def test_automation_application_import(data_fixture):
     create_row_mapping = create_row_service.field_mappings.get(enabled=True)
     assert create_row_mapping.field_id == text_field.id
     assert (
-        create_row_mapping.value
+        create_row_mapping.value["formula"]
         == f"get('previous_node.{trigger.id}.0.field_{text_field.id}')"
     )
 

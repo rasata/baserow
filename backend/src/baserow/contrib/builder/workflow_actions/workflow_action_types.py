@@ -16,6 +16,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
+    AIAgentWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
@@ -25,11 +26,13 @@ from baserow.contrib.builder.workflow_actions.models import (
     NotificationWorkflowAction,
     OpenPageWorkflowAction,
     RefreshDataSourceWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.builder.workflow_actions.registries import (
     BuilderWorkflowActionType,
 )
 from baserow.contrib.builder.workflow_actions.types import BuilderWorkflowActionDict
+from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreSMTPEmailServiceType,
@@ -38,9 +41,13 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.contrib.integrations.slack.service_types import (
+    SlackWriteMessageServiceType,
+)
 from baserow.core.db import specific_queryset
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
@@ -59,27 +66,34 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
         "title": FormulaSerializerField(
             help_text="The title of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
         "description": FormulaSerializerField(
             help_text="The description of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 
     class SerializedDict(BuilderWorkflowActionDict):
-        title: BaserowFormula
-        description: BaserowFormula
+        title: BaserowFormulaObject
+        description: BaserowFormulaObject
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["title", "description"]
 
-    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {"title": "'hello'", "description": "'there'"}
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, BaserowFormulaObject]:
+        return {
+            "title": BaserowFormulaObject(
+                formula="'hello'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "description": BaserowFormulaObject(
+                formula="'there'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+        }
 
 
 class OpenPageWorkflowActionType(BuilderWorkflowActionType):
@@ -127,13 +141,17 @@ class OpenPageWorkflowActionType(BuilderWorkflowActionType):
         yield from super().formula_generator(workflow_action)
 
         for index, page_parameter in enumerate(workflow_action.page_parameters):
-            new_formula = yield page_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                page_parameter.get("value")
+            )
             if new_formula is not None:
                 workflow_action.page_parameters[index]["value"] = new_formula
                 yield workflow_action
 
         for index, query_parameter in enumerate(workflow_action.query_parameters or []):
-            new_formula = yield query_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                query_parameter.get("value")
+            )
             if new_formula is not None:
                 workflow_action.query_parameters[index]["value"] = new_formula
                 yield workflow_action
@@ -468,4 +486,24 @@ class CoreSMTPEmailActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_smtp_email_service()
+        return {"service": service}
+
+
+class AIAgentWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "ai_agent"
+    model_class = AIAgentWorkflowAction
+    service_type = AIAgentServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_ai_agent_service()
+        return {"service": service}
+
+
+class SlackWriteMessageWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "slack_write_message"
+    model_class = SlackWriteMessageWorkflowAction
+    service_type = SlackWriteMessageServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_slack_write_message_service()
         return {"service": service}

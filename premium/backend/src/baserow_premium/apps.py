@@ -48,6 +48,12 @@ class BaserowPremiumConfig(AppConfig):
         ai_field_output_registry.register(TextAIFieldOutputType())
         ai_field_output_registry.register(ChoiceAIFieldOutputType())
 
+        from baserow.core.jobs.registries import job_type_registry
+
+        from .fields.job_types import GenerateAIValuesJobType
+
+        job_type_registry.register(GenerateAIValuesJobType())
+
         from baserow.contrib.database.rows.registries import row_metadata_registry
         from baserow.contrib.database.views.registries import (
             decorator_type_registry,
@@ -177,7 +183,6 @@ class BaserowPremiumConfig(AppConfig):
 
         settings_data_registry.register(InstanceWideSettingsDataType())
 
-        import baserow_premium.fields.tasks  # noqa: F401
         from baserow_premium.integrations.registries import grouped_aggregation_registry
 
         from baserow.contrib.database.fields.field_aggregations import (

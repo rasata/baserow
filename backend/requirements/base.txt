@@ -32,8 +32,6 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-async-timeout==5.0.1
-    # via redis
 attrs==24.3.0
     # via
     #   jsonschema
@@ -64,7 +62,7 @@ brotli==1.1.0
     # via -r base.in
 cachetools==5.5.0
     # via google-auth
-celery[redis]==5.4.0
+celery[redis]==5.5.3
     # via
     #   -r base.in
     #   celery-redbeat
@@ -212,8 +210,6 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   opentelemetry-exporter-otlp-proto-http
-greenlet==3.2.4
-    # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
 h11==0.16.0
@@ -229,7 +225,6 @@ httptools==0.6.4
 httpx==0.27.2
     # via
     #   anthropic
-    #   langgraph-sdk
     #   langsmith
     #   mcp
     #   mistralai
@@ -266,10 +261,11 @@ itsdangerous==2.2.0
     # via -r base.in
 jira2markdown==0.3.7
     # via -r base.in
-jiter==0.8.2
+jiter==0.11.1
     # via
     #   anthropic
     #   openai
+    #   udspy
 jmespath==1.0.1
     # via
     #   boto3
@@ -284,35 +280,19 @@ jsonschema==4.25.0
     # via drf-spectacular
 jsonschema-specifications==2025.4.1
     # via jsonschema
-kombu==5.4.2
+kombu[redis]==5.5.4
     # via celery
 langchain==0.3.27
     # via -r base.in
-langchain-core==0.3.72
+langchain-core==0.3.78
     # via
     #   langchain
     #   langchain-openai
     #   langchain-text-splitters
-    #   langgraph
-    #   langgraph-checkpoint
-    #   langgraph-prebuilt
-langchain-openai==0.3.28
+langchain-openai==0.3.35
     # via -r base.in
 langchain-text-splitters==0.3.9
     # via langchain
-langgraph==0.6.3
-    # via -r base.in
-langgraph-checkpoint==2.1.1
-    # via
-    #   langgraph
-    #   langgraph-checkpoint-postgres
-    #   langgraph-prebuilt
-langgraph-checkpoint-postgres==2.0.23
-    # via -r base.in
-langgraph-prebuilt==0.6.3
-    # via langgraph
-langgraph-sdk==0.2.0
-    # via langgraph
 langsmith==0.4.10
     # via
     #   langchain
@@ -337,14 +317,17 @@ ndg-httpsclient==0.5.1
     # via advocate
 netifaces==0.11.0
     # via advocate
+numpy==2.3.3
+    # via pgvector
 oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
     # via -r base.in
-openai==1.91.0
+openai==2.2.0
     # via
     #   -r base.in
     #   langchain-openai
+    #   udspy
 openpyxl==3.1.5
     # via -r base.in
 opentelemetry-api==1.37.0
@@ -454,19 +437,17 @@ opentelemetry-util-http==0.58b0
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
 orjson==3.10.13
-    # via
-    #   langgraph-checkpoint-postgres
-    #   langgraph-sdk
-    #   langsmith
-ormsgpack==1.10.0
-    # via langgraph-checkpoint
+    # via langsmith
 packaging==23.2
     # via
     #   gunicorn
     #   huggingface-hub
+    #   kombu
     #   langchain-core
     #   langsmith
     #   opentelemetry-instrumentation
+pgvector==0.4.1
+    # via -r base.in
 pillow==10.3.0
     # via -r base.in
 posthog==3.5.0
@@ -487,10 +468,6 @@ protobuf==5.29.5
     #   proto-plus
 psutil==5.9.8
     # via -r base.in
-psycopg==3.2.9
-    # via langgraph-checkpoint-postgres
-psycopg-pool==3.2.6
-    # via langgraph-checkpoint-postgres
 psycopg2==2.9.10
     # via -r base.in
 pyasn1==0.6.1
@@ -511,12 +488,12 @@ pydantic==2.9.2
     #   anthropic
     #   langchain
     #   langchain-core
-    #   langgraph
     #   langsmith
     #   mcp
     #   mistralai
     #   openai
     #   pydantic-settings
+    #   udspy
 pydantic-core==2.23.4
     # via pydantic
 pydantic-settings==2.8.1
@@ -531,6 +508,8 @@ pyopenssl==24.3.0
     #   ndg-httpsclient
     #   pysaml2
     #   twisted
+pyotp==2.9.0
+    # via -r base.in
 pyparsing==3.2.1
     # via jira2markdown
 pysaml2==7.5.0
@@ -566,22 +545,25 @@ pyyaml==6.0.2
     #   langchain
     #   langchain-core
     #   uvicorn
-redis==5.0.4
+qrcode==8.2
+    # via -r base.in
+redis==5.2.1
     # via
     #   -r base.in
-    #   celery
     #   celery-redbeat
     #   celery-singleton
     #   channels-redis
     #   django-redis
+    #   kombu
 referencing==0.36.2
     # via
     #   jsonschema
     #   jsonschema-specifications
-regex==2024.4.28
+regex==2025.10.23
     # via
     #   -r base.in
     #   tiktoken
+    #   udspy
 requests==2.32.5
     # via
     #   -r base.in
@@ -644,6 +626,7 @@ tenacity==8.5.0
     # via
     #   celery-redbeat
     #   langchain-core
+    #   udspy
 tiktoken==0.9.0
     # via langchain-openai
 tokenizers==0.21.0
@@ -679,8 +662,6 @@ typing-extensions==4.11.0
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
     #   prosemirror
-    #   psycopg
-    #   psycopg-pool
     #   pydantic
     #   pydantic-core
     #   referencing
@@ -689,12 +670,13 @@ typing-extensions==4.11.0
     #   typing-inspect
 typing-inspect==0.9.0
     # via mistralai
-tzdata==2024.1
+tzdata==2025.2
     # via
     #   -r base.in
-    #   celery
     #   django-celery-beat
     #   kombu
+udspy==0.1.7
+    # via -r base.in
 unicodecsv==0.14.1
     # via -r base.in
 uritemplate==4.1.1
@@ -735,8 +717,6 @@ wrapt==1.17.0
     #   opentelemetry-instrumentation-redis
 xmlschema==2.5.1
     # via pysaml2
-xxhash==3.5.0
-    # via langgraph
 zipp==3.19.1
     # via
     #   -r base.in

@@ -1,8 +1,10 @@
 from uuid import uuid4
 
+from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreIteratorService,
     CoreRouterService,
     CoreSMTPEmailService,
 )
@@ -18,6 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
 )
+from baserow.contrib.integrations.slack.models import SlackWriteMessageService
 from baserow.core.services.registries import service_type_registry
 
 
@@ -99,20 +102,36 @@ class ServiceFixtures:
         service = self.create_service(CoreSMTPEmailService, **kwargs)
         return service
 
+    def create_ai_agent_service(self, **kwargs):
+        return self.create_service(AIAgentService, **kwargs)
+
+    def create_slack_write_message_service(self, **kwargs):
+        return self.create_service(SlackWriteMessageService, **kwargs)
+
+    def create_core_iterator_service(self, **kwargs):
+        return self.create_service(CoreIteratorService, **kwargs)
+
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
 
     def create_core_router_service_edge(self, service: CoreRouterService, **kwargs):
         output_node = kwargs.pop("output_node", None)
         skip_output_node = kwargs.pop("skip_output_node", False)
+        edge_label = kwargs.get("label", "Edge")
+        output_label = kwargs.pop("output_label", f"{edge_label} output node")
+
         edge = service.edges.create(**kwargs)
+
         if output_node is None and not skip_output_node:
             router_node = service.automation_workflow_node
             self.create_local_baserow_create_row_action_node(
-                previous_node_output=edge.uid,
-                previous_node_id=router_node.id,
+                reference_node=router_node,
+                output=edge.uid,
+                position="south",
                 workflow=router_node.workflow,
+                label=output_label,
             )
+
         return edge
 
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:

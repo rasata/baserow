@@ -55,12 +55,11 @@ def test_create_workflow(api_client, data_fixture):
         "state": "draft",
         "published_on": None,
         "simulate_until_node_id": None,
+        "graph": {},
     }
 
     workflow = automation.workflows.get(id=response_json["id"])
-    assert workflow.automation_workflow_nodes.count() == 1
-    node = workflow.automation_workflow_nodes.get().specific
-    assert node.get_type().is_workflow_trigger
+    assert workflow.automation_workflow_nodes.count() == 0
 
 
 @pytest.mark.django_db
@@ -124,6 +123,7 @@ def test_read_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(automation=automation)
+    trigger = workflow.get_trigger()
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.get(
@@ -142,6 +142,7 @@ def test_read_workflow(api_client, data_fixture):
         "simulate_until_node_id": None,
         "state": "draft",
         "published_on": None,
+        "graph": {"0": trigger.id, str(trigger.id): {}},
     }
 
 
@@ -341,11 +342,13 @@ def test_duplicate_workflow(api_client, data_fixture):
     workflow = data_fixture.create_automation_workflow(
         user, automation=automation, name="test"
     )
+    trigger = workflow.get_trigger()
 
     url = reverse(API_URL_WORKFLOW_DUPLICATE, kwargs={"workflow_id": workflow.id})
     response = api_client.post(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == HTTP_202_ACCEPTED
+
     assert response.json() == {
         "duplicated_automation_workflow": None,
         "human_readable_error": "",
@@ -359,6 +362,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "state": "draft",
             "published_on": None,
             "simulate_until_node_id": None,
+            "graph": {"0": trigger.id, str(trigger.id): {}},
         },
         "progress_percentage": 0,
         "state": "pending",
@@ -428,7 +432,10 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         integration=data_fixture.create_local_baserow_integration(user=user),
     )
     trigger_node = data_fixture.create_automation_node(
-        user=user, workflow=workflow, type="rows_created", service=trigger_service
+        user=user,
+        workflow=workflow,
+        type="local_baserow_rows_created",
+        service=trigger_service,
     )
 
     # Next create an action node
@@ -448,7 +455,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
         service=action_service,
     )
 

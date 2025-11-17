@@ -175,7 +175,7 @@ from .dependencies.exceptions import (
 from .dependencies.handler import FieldDependants, FieldDependencyHandler
 from .dependencies.models import FieldDependency
 from .dependencies.types import FieldDependencies
-from .dependencies.update_collector import FieldUpdateCollector
+from .dependencies.update_collector import DependencyContext, FieldUpdateCollector
 from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
@@ -3582,6 +3582,7 @@ class LinkRowFieldType(
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
+        dependency_context: DependencyContext,
     ):
         update_collector.add_field_which_has_changed(
             field, via_path_to_starting_table, send_field_updated_signal=False
@@ -3592,6 +3593,7 @@ class LinkRowFieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def field_dependency_updated(
@@ -3971,12 +3973,19 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                with files_zip.open(file["name"]) as stream:
-                    # Try to upload the user file with the original name to make sure
-                    # that if the was already uploaded, it will not be uploaded again.
-                    user_file = user_file_handler.upload_user_file(
-                        None, file["original_name"], stream, storage=storage
-                    )
+                try:
+                    with files_zip.open(file["name"]) as stream:
+                        # Try to upload the user file with the original name
+                        # to make sure that if the was already uploaded, it will
+                        # not be uploaded again.
+                        user_file = user_file_handler.upload_user_file(
+                            None, file["original_name"], stream, storage=storage
+                        )
+                except KeyError:
+                    # File not found in zip archive - skip this file and
+                    # let the import process report handle missing files
+                    # appropriately
+                    continue
 
                 value = user_file.serialize()
                 value["visible_name"] = file["visible_name"]
@@ -5251,21 +5260,16 @@ class MultipleSelectFieldType(
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
+        agg_expr = JSONBAgg(
+            get_select_option_extractor(db_column, model_field),
+            filter=Q(**{f"{db_column}__isnull": False}),
+            ordering=(f"{db_column}__order", f"{db_column}__id"),
+        )
         if already_in_subquery:
-            return Coalesce(
-                JSONBAgg(
-                    get_select_option_extractor(db_column, model_field),
-                    filter=Q(**{f"{db_column}__isnull": False}),
-                ),
-                Value([], output_field=JSONField()),
-            )
+            return Coalesce(agg_expr, Value([], output_field=JSONField()))
         else:
             return Coalesce(
-                wrap_in_subquery(
-                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
-                    db_column,
-                    model_field.model,
-                ),
+                wrap_in_subquery(agg_expr, db_column, model_field.model),
                 Value([], output_field=JSONField()),
             )
 
@@ -5695,6 +5699,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: DependencyContext,
     ):
         self._update_field_values(
             field, update_collector, field_cache, via_path_to_starting_table
@@ -5706,6 +5711,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def _update_field_values(

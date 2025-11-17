@@ -13,6 +13,7 @@ import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 import _ from 'lodash'
+import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal.vue'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -182,6 +183,14 @@ export class AIFieldType extends FieldType {
     return this.getBaserowFieldType(field).isEqual(field, value1, value2)
   }
 
+  parseFilterValue(field, filterValue) {
+    return this.getBaserowFieldType(field).parseFilterValue(field, filterValue)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getBaserowFieldType(field).formatFilterValue(field, value)
+  }
+
   canBeReferencedByFormulaField(field) {
     return this.getBaserowFieldType(field).canBeReferencedByFormulaField(field)
   }
@@ -194,6 +203,14 @@ export class AIFieldType extends FieldType {
     return Object.values(workspace.generative_ai_models_enabled).some(
       (models) => models.length > 0
     )
+  }
+
+  getDisabledClickModal(workspace) {
+    return [WorkspaceSettingsModal, { workspace }]
+  }
+
+  getDisabledTooltip() {
+    return 'Click to configure API key'
   }
 
   isDeactivated(workspaceId) {
@@ -213,6 +230,10 @@ export class AIFieldType extends FieldType {
 
   prepareValueForPaste(field, value) {
     return this.getBaserowFieldType(field).prepareValueForPaste(field, value)
+  }
+
+  getCompatibleFilterFieldType(field) {
+    return this.getBaserowFieldType(field)
   }
 }
 

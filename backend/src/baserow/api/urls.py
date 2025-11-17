@@ -17,11 +17,13 @@ from .integrations import urls as integrations_urls
 from .jobs import urls as jobs_urls
 from .mcp import urls as mcp_urls
 from .notifications import urls as notifications_urls
+from .search import urls as search_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
 from .spectacular.views import CachedSpectacularJSONAPIView
 from .templates import urls as templates_urls
 from .trash import urls as trash_urls
+from .two_factor_auth import urls as two_factor_urls
 from .user import urls as user_urls
 from .user_files import urls as user_files_urls
 from .user_sources import urls as user_source_urls
@@ -40,6 +42,7 @@ urlpatterns = (
         ),
         path("settings/", include(settings_urls, namespace="settings")),
         path("auth-provider/", include(auth_provider_urls, namespace="auth_provider")),
+        path("two-factor-auth/", include(two_factor_urls, namespace="two_factor_auth")),
         path("user/", include(user_urls, namespace="user")),
         path("user-files/", include(user_files_urls, namespace="user_files")),
         path("workspaces/", include(workspace_urls, namespace="workspaces")),
@@ -50,6 +53,7 @@ urlpatterns = (
         path("snapshots/", include(snapshots_urls, namespace="snapshots")),
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
+        path("search/", include(search_urls, namespace="search")),
         path("admin/", include(admin_urls, namespace="admin")),
         path("mcp/", include(mcp_urls, namespace="mcp")),
         path(

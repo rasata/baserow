@@ -65,6 +65,8 @@ import {
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
+import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
 import en from '@baserow_premium/locales/en.json'
 import fr from '@baserow_premium/locales/fr.json'
 import nl from '@baserow_premium/locales/nl.json'
@@ -223,6 +225,14 @@ export default (context) => {
     'aiFieldOutputType',
     new ChoiceAIFieldOutputType(context)
   )
+
+  app.$registry.register('job', new GenerateAIValuesJobType(context))
+
+  app.$registry.register(
+    'fieldContextItem',
+    new GenerateAIValuesContextItemType(context)
+  )
+
   app.$registry.register(
     'groupedAggregation',
     new MinViewAggregationType(context)
@@ -358,4 +368,6 @@ export default (context) => {
     new PublicLogoRemovalPaidFeature(context)
   )
   app.$registry.register('paidFeature', new ChartPaidFeature(context))
+
+  app.$registry.registerNamespace('timelineFieldRules')
 }

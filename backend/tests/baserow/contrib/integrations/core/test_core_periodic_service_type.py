@@ -8,6 +8,9 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -30,7 +33,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger_node = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -52,7 +55,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
 
     node_handler = AutomationNodeHandler()
@@ -97,6 +100,38 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert updated_service_specific.day_of_week == 2
 
 
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    5,
+)
+def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
+    user = data_fixture.create_user()
+    values = {
+        "interval": PERIODIC_INTERVAL_MINUTE,
+        "minute": 5,
+    }
+    prepared = CorePeriodicServiceType().prepare_values(values, user)
+    assert prepared["interval"] == PERIODIC_INTERVAL_MINUTE
+    assert prepared["minute"] == 5
+
+    values = {
+        "interval": PERIODIC_INTERVAL_MINUTE,
+        "minute": 10,
+    }
+    prepared = CorePeriodicServiceType().prepare_values(values, user)
+    assert prepared["interval"] == PERIODIC_INTERVAL_MINUTE
+    assert prepared["minute"] == 10
+
+    values = {
+        "interval": PERIODIC_INTERVAL_MINUTE,
+        "minute": 3,
+    }
+    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+        CorePeriodicServiceType().prepare_values(values, user)
+    assert str(e.value) == "The `minute` value must be greater or equal to 5."
+
+
 @pytest.mark.django_db(transaction=True)
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
@@ -107,7 +142,7 @@ def test_call_periodic_services_that_are_not_published(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.DRAFT
+        automation=automation, state=WorkflowState.DRAFT, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -134,7 +169,7 @@ def test_call_periodic_services_that_are_paused(mock_start_workflow, data_fixtur
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.PAUSED
+        automation=automation, state=WorkflowState.PAUSED, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -161,7 +196,7 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -195,7 +230,7 @@ def test_call_multiple_periodic_services_that_are_due(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_1,
@@ -205,7 +240,7 @@ def test_call_multiple_periodic_services_that_are_due(
         },
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_2,
@@ -225,11 +260,11 @@ def test_call_multiple_periodic_services_that_are_due(
         [
             call(
                 workflow_1,
-                {"triggered_at": "2025-02-15T10:30:45+00:00"},
+                {"triggered_at": "2025-02-15T10:30:00+00:00"},
             ),
             call(
                 workflow_2,
-                {"triggered_at": "2025-02-15T10:30:45+00:00"},
+                {"triggered_at": "2025-02-15T10:30:00+00:00"},
             ),
         ]
     )
@@ -251,6 +286,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 30, tzinfo=timezone.utc
@@ -263,6 +299,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc
@@ -275,18 +312,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 29, 59, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-2-15-10 29:59 = 46 seconds, so should not be
-            # triggered.
-            False,
-        ),
-        (
-            {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 28, 59, tzinfo=timezone.utc
@@ -299,6 +325,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 1, 16, 2, 59, 59, tzinfo=timezone.utc
@@ -306,6 +333,30 @@ def test_call_multiple_periodic_services_that_are_due(
             },
             "2025-02-15 10:30:45",
             # Almost a month ago, so it should be triggered.
+            True,
+        ),
+        (
+            {
+                "minute": 5,
+                "interval": PERIODIC_INTERVAL_MINUTE,
+                "last_periodic_run": datetime(
+                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
+                ),
+            },
+            "2025-11-06 12:03:00",
+            # It's been 3 minutes, so it should not be triggered.
+            False,
+        ),
+        (
+            {
+                "minute": 5,
+                "interval": PERIODIC_INTERVAL_MINUTE,
+                "last_periodic_run": datetime(
+                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
+                ),
+            },
+            "2025-11-06 12:05:00",
+            # It's been 5 minutes, so it should be triggered.
             True,
         ),
         # Hour
@@ -599,7 +650,7 @@ def test_call_periodic_services_that_are_due(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -609,7 +660,9 @@ def test_call_periodic_services_that_are_due(
     service_type = service_type_registry.get(CorePeriodicServiceType.type)
     service_type.on_event = MagicMock()
 
-    target_date = datetime.fromisoformat(frozen_time).replace(tzinfo=timezone.utc)
+    target_date = datetime.fromisoformat(frozen_time).replace(
+        tzinfo=timezone.utc, second=0, microsecond=0
+    )
 
     def check_service_count(services, event_payload):
         if should_be_called:

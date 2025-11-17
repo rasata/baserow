@@ -12,12 +12,14 @@ import {
   LocalBaserowUpdateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
@@ -250,6 +252,14 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.name
   }
 
+  get icon() {
+    return this.serviceType.icon
+  }
+
+  get image() {
+    return this.serviceType.image
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),
@@ -301,6 +311,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return super.getErrorMessage(workflowAction, applicationContext)
   }
 
+  prepareValuePath(workflowAction, path) {
+    return this.serviceType.prepareValuePath(workflowAction.service, path)
+  }
+
   get serviceType() {
     throw new Error('This method must be implemented')
   }
@@ -309,10 +323,6 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'http_request'
-  }
-
-  get icon() {
-    return 'iconoir-cloud-upload'
   }
 
   get serviceType() {
@@ -332,10 +342,6 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
     return 'smtp_email'
   }
 
-  get icon() {
-    return 'iconoir-send-mail'
-  }
-
   get serviceType() {
     return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
   }
@@ -348,10 +354,6 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
 export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'create_row'
-  }
-
-  get icon() {
-    return 'baserow-icon-plus'
   }
 
   get serviceType() {
@@ -367,10 +369,6 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
-  get icon() {
-    return 'iconoir-edit-pencil'
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -384,14 +382,33 @@ export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
     return 'delete_row'
   }
 
-  get icon() {
-    return 'iconoir-bin'
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'ai_agent'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', AIAgentServiceType.getType())
+  }
+}
+
+export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'slack_write_message'
   }
 
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowDeleteRowWorkflowServiceType.getType()
+      SlackWriteMessageServiceType.getType()
     )
   }
 }

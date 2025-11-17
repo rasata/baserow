@@ -174,7 +174,7 @@ export class DataProviderType extends Registerable {
   _toNode(applicationContext, pathParts, schema) {
     const identifier = pathParts.at(-1)
     const name = this.getPathTitle(applicationContext, pathParts)
-    const order = schema?.order || null
+    const order = schema?.order ?? null
 
     if (schema === null) {
       return {
@@ -186,17 +186,46 @@ export class DataProviderType extends Registerable {
       }
     }
 
+    if (schema.anyOf) {
+      const schemaObject = schema.anyOf.find((s) => s.type === 'object')
+
+      return {
+        name,
+        identifier,
+        order,
+        type: 'union',
+        icon: this.getIconForNode({ type: 'union' }),
+        nodes: [
+          // Always allow direct access to the entire value
+          {
+            name: `${name} (${this.app.i18n.t('common.value')})`,
+            identifier: '',
+            order: 0,
+            type: 'unknown',
+            icon: this.getIconForNode({ type: 'union' }),
+          },
+
+          // If it is an object, show the individual properties
+          ...(schemaObject && schemaObject.properties
+            ? Object.entries(schemaObject.properties).map(([key, subSchema]) =>
+                this._toNode(applicationContext, [...pathParts, key], subSchema)
+              )
+            : []),
+        ],
+      }
+    }
+
     if (schema.type === 'array') {
       return {
         name,
         identifier,
+        order,
         icon: this.getIconForNode(schema),
         type: 'array',
-        nodes: this._toNode(
-          applicationContext,
-          [...pathParts, null],
-          schema.items
-        ).nodes,
+        nodes: schema.items
+          ? this._toNode(applicationContext, [...pathParts, null], schema.items)
+              .nodes
+          : [],
       }
     }
 
@@ -206,14 +235,15 @@ export class DataProviderType extends Registerable {
         identifier,
         order,
         icon: this.getIconForNode(schema),
-        nodes: Object.entries(schema.properties).map(
-          ([identifier, subSchema]) =>
-            this._toNode(
-              applicationContext,
-              [...pathParts, identifier],
-              subSchema
+        nodes: schema.properties
+          ? Object.entries(schema.properties).map(([identifier, subSchema]) =>
+              this._toNode(
+                applicationContext,
+                [...pathParts, identifier],
+                subSchema
+              )
             )
-        ),
+          : [],
       }
     }
 

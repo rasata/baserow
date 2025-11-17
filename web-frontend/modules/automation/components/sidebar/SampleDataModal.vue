@@ -3,16 +3,15 @@
     <h2 class="box__title">{{ title }}</h2>
     <div class="sample-data-modal__sub-title">
       {{ $t('simulateDispatch.sampleDataModalSubTitle') }}
-    </div>
-    <div class="sample-data-modal__code">
       <Button
-        class="sample-data-modal__copy-button"
         type="secondary"
         icon="iconoir-copy simulate-dispatch-node__button-icon"
         @click="copyToClipboard"
       >
         {{ $t('simulateDispatch.sampleDataCopy') }}
       </Button>
+    </div>
+    <div class="sample-data-modal__code">
       <pre><code>{{ sampleData }}</code></pre>
     </div>
   </Modal>
@@ -27,7 +26,7 @@ export default {
   mixins: [modal],
   props: {
     sampleData: {
-      type: [Object, Array],
+      type: null,
       required: true,
     },
     title: {

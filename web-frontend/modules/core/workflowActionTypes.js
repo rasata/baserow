@@ -32,6 +32,13 @@ export class WorkflowActionType extends Registerable {
   }
 
   /**
+   * Allow to customize way data are accessed from workflow action
+   */
+  prepareValuePath(workflowAction, path) {
+    return path
+  }
+
+  /**
    * Returns a message if the workflow action configuration is invalid.
    * @param {object} workflowAction - The workflow action to validate.
    * @param {object} params An object containing application context data.

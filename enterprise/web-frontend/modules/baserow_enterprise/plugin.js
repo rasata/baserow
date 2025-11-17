@@ -73,7 +73,6 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
-  AssistantPaidFeature,
   CoBrandingPaidFeature,
   DataSyncPaidFeature,
   DateDependencyPaidFeature,
@@ -83,13 +82,12 @@ import {
   SupportPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
-import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
+import {
+  DateDependencyContextItemType,
+  DateDependencyTimelineComponent,
+} from '@baserow_enterprise/dateDependencyTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-import {
-  FF_ASSISTANT,
-  FF_DATE_DEPENDENCY,
-} from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -230,9 +228,6 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
-  if (app.$featureFlagIsEnabled(FF_ASSISTANT)) {
-    app.$registry.register('paidFeature', new AssistantPaidFeature(context))
-  }
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
   app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
   app.$registry.register(
@@ -244,15 +239,14 @@ export default (context) => {
     new BuilderFileInputElementPaidFeature(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-    app.$registry.register(
-      'paidFeature',
-      new DateDependencyPaidFeature(context)
-    )
-  }
+  app.$registry.register('paidFeature', new DateDependencyPaidFeature(context))
+  app.$registry.register(
+    'timelineFieldRules',
+    new DateDependencyTimelineComponent(context)
+  )
   app.$registry.register(
     'fieldContextItem',
-    new DateDepencencyContextItemType(context)
+    new DateDependencyContextItemType(context)
   )
 
   // Register builder page decorator namespace and types

@@ -20,6 +20,10 @@ export const TriggerNodeTypeMixin = (Base) =>
     getDeleteErrorMessage({ workflow, node }) {
       return this.app.i18n.t('nodeType.triggerDeletionError')
     }
+
+    isDuplicable({ workflow, node }) {
+      return false
+    }
   }
 
 export const ActionNodeTypeMixin = (Base) =>
@@ -30,4 +34,9 @@ export const ActionNodeTypeMixin = (Base) =>
 export const UtilityNodeMixin = (Base) =>
   class extends Base {
     isUtilityNode = true
+  }
+
+export const containerNodeTypeMixin = (Base) =>
+  class extends Base {
+    isContainer = true
   }

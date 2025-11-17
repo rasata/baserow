@@ -43,7 +43,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 1.35.3
+      tag: 2.0.0
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -59,6 +59,7 @@ global:
     domain: cluster.local
     backendDomain: api.cluster.local
     objectsDomain: objects.cluster.local
+    assistantLLMModel: "groq/openai/gpt-oss-120b"
 
     securityContext:
       enabled: false
@@ -544,6 +545,64 @@ baserow-celery-flower:
   args:
     - celery-flower
   replicaCount: 1
+
+## Configuration for the Baserow Embeddings service
+## @param baserow-embeddings.enabled Set to true to enable the Baserow Embeddings service.
+## @param baserow-embeddings.assistantLLMModel The LLM model to use for the AI assistant (e.g., "groq/openai/gpt-oss-120b").
+## @param baserow-embeddings.image.repository Docker image repository for the Embeddings service.
+## @param baserow-embeddings.resources Resource requests and limits for the Embeddings service.
+## @param baserow-embeddings.autoscaling.enabled Enable autoscaling for the Embeddings service.
+## @param baserow-embeddings.autoscaling.minReplicas Minimum number of replicas for autoscaling.
+## @param baserow-embeddings.autoscaling.maxReplicas Maximum number of replicas for autoscaling.
+## @param baserow-embeddings.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling.
+## @param baserow-embeddings.service.port Service port for the Embeddings service.
+## @param baserow-embeddings.service.targetPort Target port for the Embeddings service.
+## @param baserow-embeddings.readinessProbe.initialDelaySeconds Initial delay for readiness probe.
+## @param baserow-embeddings.readinessProbe.periodSeconds Period for readiness probe.
+## @param baserow-embeddings.readinessProbe.timeoutSeconds Timeout for readiness probe.
+## @param baserow-embeddings.livenessProbe.initialDelaySeconds Initial delay for liveness probe.
+## @param baserow-embeddings.livenessProbe.periodSeconds Period for liveness probe.
+## @param baserow-embeddings.livenessProbe.timeoutSeconds Timeout for liveness probe.
+baserow-embeddings:
+  enabled: false
+  image:
+    repository: embeddings
+  resources:
+    requests:
+      cpu: 800m
+      memory: 1536Mi
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
 
 ## @section Ingress Configuration
 ## Configuration for the Ingress resource

@@ -81,9 +81,6 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
-    # Is this a service that triggers events?
-    is_trigger: bool = False
-
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DATA` should be
     # chosen, or via a `WorkflowAction`, in which case `ACTION`
@@ -285,11 +282,11 @@ class ServiceType(
         """
 
         resolved_values = {}
-        for key, formula, ensurer, label in self.formulas_to_resolve(service):
+        for key, formula_ctx, ensurer, label in self.formulas_to_resolve(service):
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(
-                        formula,
+                        formula_ctx,
                         formula_runtime_function_registry,
                         dispatch_context.clone(),
                     )
@@ -313,6 +310,9 @@ class ServiceType(
                 raise UnexpectedDispatchException(message) from e
 
         return resolved_values
+
+    def prepare_value_path(self, service: Service, path: List[str]):
+        return path
 
     def dispatch_transform(
         self,
@@ -356,8 +356,6 @@ class ServiceType(
         :return: The service dispatch result if any.
         """
 
-        resolved_values = self.resolve_service_formulas(service, dispatch_context)
-
         # If simulated, try to return existing sample data
         if (
             dispatch_context.use_sample_data
@@ -370,22 +368,59 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
-        data = self.dispatch_data(service, resolved_values, dispatch_context)
-        serialized_data = self.dispatch_transform(data)
+        try:
+            resolved_values = self.resolve_service_formulas(service, dispatch_context)
+            data = self.dispatch_data(service, resolved_values, dispatch_context)
+            serialized_data = self.dispatch_transform(data)
+        except Exception as e:
+            if dispatch_context.use_sample_data and (
+                dispatch_context.update_sample_data_for is None
+                or service in dispatch_context.update_sample_data_for
+            ):
+                service.sample_data = {"_error": str(e)}
+                service.save()
+            raise
+        else:
+            if dispatch_context.use_sample_data and (
+                dispatch_context.update_sample_data_for is None
+                or service in dispatch_context.update_sample_data_for
+            ):
+                sample_data = {}
+                for field in fields(serialized_data):
+                    value = getattr(serialized_data, field.name)
+                    sample_data[field.name] = value
 
-        if dispatch_context.use_sample_data and (
-            dispatch_context.update_sample_data_for is None
-            or service in dispatch_context.update_sample_data_for
-        ):
-            sample_data = {}
-            for field in fields(serialized_data):
-                value = getattr(serialized_data, field.name)
-                sample_data[field.name] = value
+                service.sample_data = sample_data
+                service.save()
+            return serialized_data
 
-            service.sample_data = sample_data
-            service.save()
+    def remove_unused_field_names(
+        self,
+        row: Dict[str, Any],
+        field_names: List[str],
+    ) -> Dict[str, Any]:
+        """
+        Given a row dictionary, return a version of it that only contains keys
+        existing in the field_names list.
+        """
 
-        return serialized_data
+        return {key: value for key, value in row.items() if key in field_names}
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        """
+        Remove the non public fields from the result.
+        """
+
+        if self.returns_list:
+            return {
+                **result,
+                "results": [
+                    self.remove_unused_field_names(row, allowed_field_names)
+                    for row in result["results"]
+                ],
+            }
+        else:
+            return self.remove_unused_field_names(result, allowed_field_names)
 
     def get_schema_name(self, service: Service) -> str:
         """
@@ -449,9 +484,6 @@ class ServiceType(
         import_formula: Callable[[str, Dict[str, Any]], str] = None,
         **kwargs,
     ):
-        if import_formula is None:
-            raise ValueError("Missing import formula function.")
-
         created_instance = super().import_serialized(
             parent,
             serialized_values,
@@ -460,11 +492,12 @@ class ServiceType(
             **kwargs,
         )
 
-        updated_models = self.import_formulas(
-            created_instance, id_mapping, import_formula, **kwargs
-        )
+        if import_formula is not None:
+            updated_models = self.import_formulas(
+                created_instance, id_mapping, import_formula, **kwargs
+            )
 
-        [m.save() for m in updated_models]
+            [m.save() for m in updated_models]
 
         return created_instance
 
@@ -481,6 +514,9 @@ class ServiceType(
         """
 
         return property_name
+
+    def get_edges(self, service):
+        return {"": {"label": ""}}
 
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
@@ -525,9 +561,6 @@ class ListServiceTypeMixin:
 
 
 class TriggerServiceTypeMixin(ABC):
-    # Is this a service that triggers events?
-    is_trigger: bool = True
-
     # The callable function which should be called when the event occurs.
     on_event: Callable = lambda *args: None
 

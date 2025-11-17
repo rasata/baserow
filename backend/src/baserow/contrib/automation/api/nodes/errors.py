@@ -1,7 +1,13 @@
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
-ERROR_AUTOMATION_NODE_BEFORE_INVALID = (
-    "ERROR_AUTOMATION_NODE_BEFORE_INVALID",
+ERROR_AUTOMATION_UNEXPECTED_ERROR = (
+    "ERROR_AUTOMATION_UNEXPECTED_ERROR",
+    HTTP_400_BAD_REQUEST,
+    "{e}",
+)
+
+ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID = (
+    "ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID",
     HTTP_400_BAD_REQUEST,
     "{e}",
 )
@@ -24,11 +30,25 @@ ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE = (
     "{e}",
 )
 
-ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED = (
-    "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
+
+ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE = (
+    "ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE",
     HTTP_400_BAD_REQUEST,
-    "Triggers can not be created, deleted or duplicated, "
-    "they can only be replaced with a different type.",
+    "This operation is disallowed because a trigger must be the first node of "
+    "the workflow",
+)
+
+ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER = (
+    "ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER",
+    HTTP_400_BAD_REQUEST,
+    "This operation is disallowed because an action can't be the first node of "
+    "the workflow",
+)
+
+ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS = (
+    "ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS",
+    HTTP_400_BAD_REQUEST,
+    "This workflow already has a trigger",
 )
 
 ERROR_AUTOMATION_NODE_NOT_DELETABLE = (

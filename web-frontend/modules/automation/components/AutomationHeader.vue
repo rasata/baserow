@@ -1,8 +1,20 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <ul v-if="isDev" class="header__filter">
-      <li class="header__filter-item">
-        <a data-item-type="settings" class="header__filter-link"
+    <ul class="header__filter">
+      <li
+        v-if="
+          $hasPermission(
+            'application.update',
+            automation,
+            automation.workspace.id
+          )
+        "
+        class="header__filter-item"
+      >
+        <a
+          data-item-type="settings"
+          class="header__filter-link"
+          @click="openSettingsModal"
           ><i class="header__filter-icon iconoir-settings"></i>
           <span class="header__filter-name">{{
             $t('automationHeader.settingsBtn')
@@ -12,6 +24,7 @@
       <li class="header__filter-item">
         <a
           data-item-type="history"
+          data-highlight="automation-history"
           class="header__filter-link"
           :class="{ 'active--primary': activeSidePanel === 'history' }"
           @click="historyClick()"
@@ -22,6 +35,18 @@
         </a>
       </li>
       <li class="header__filter-item">
+        <a
+          data-highlight="automation-docs"
+          class="header__filter-link"
+          target="_blank"
+          href="https://baserow.io/user-docs/workflow-automation"
+          ><i class="header__filter-icon iconoir-help-circle"></i>
+          <span class="header__filter-name">{{
+            $t('automationHeader.docsBtn')
+          }}</span>
+        </a>
+      </li>
+      <li v-if="isDev" class="header__filter-item">
         <a
           data-item-type="debug"
           class="header__filter-link"
@@ -57,6 +82,7 @@
         </template>
         <SwitchInput
           small
+          data-highlight="automation-workflow-state"
           :value="statusSwitch"
           :disabled="isDisabled || !publishedOn"
           @input="toggleStatusSwitch"
@@ -72,6 +98,8 @@
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
+          data-highlight="automation-test-run"
+          :disabled="testRunDisabled"
           @click="toggleTestRun"
           >{{
             testRunEnabled
@@ -80,6 +108,7 @@
           }}</Button
         >
         <Button
+          data-highlight="automation-publish"
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
           @click="publishWorkflow()"
@@ -88,6 +117,10 @@
         </Button>
       </div>
     </div>
+    <AutomationSettingsModal
+      ref="automationSettingsModal"
+      :automation="automation"
+    />
   </header>
 </template>
 
@@ -100,9 +133,12 @@ import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSi
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
+import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import AutomationSettingsModal from '@baserow/modules/automation/components/settings/AutomationSettingsModal'
+
 export default defineComponent({
   name: 'AutomationHeader',
-  components: {},
+  components: { AutomationSettingsModal },
   props: {
     automation: {
       type: Object,
@@ -126,6 +162,10 @@ export default defineComponent({
       } catch (error) {
         return null
       }
+    })
+
+    const testRunDisabled = computed(() => {
+      return !new NodeGraphHandler(workflow.value).hasNodes()
     })
 
     const testRunEnabled = computed(() => {
@@ -240,6 +280,11 @@ export default defineComponent({
       isPublishing.value = false
     }
 
+    const automationSettingsModal = ref(null)
+    const openSettingsModal = () => {
+      automationSettingsModal.value.show()
+    }
+
     return {
       isDev,
       debug,
@@ -258,6 +303,9 @@ export default defineComponent({
       selectedWorkflow,
       workflow,
       activeSidePanel,
+      testRunDisabled,
+      openSettingsModal,
+      automationSettingsModal,
     }
   },
 })

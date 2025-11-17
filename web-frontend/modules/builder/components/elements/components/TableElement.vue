@@ -41,6 +41,7 @@
                   row,
                   rowIndex,
                   field,
+                  allowSameElement: true,
                 })
               "
               v-bind="value"
@@ -102,6 +103,9 @@ export default {
       }))
     },
     rows() {
+      if (!this.elementContent) {
+        return []
+      }
       return this.elementContent.map((row, rowIndex) => {
         const newRow = Object.fromEntries(
           this.fields.map((field) => {

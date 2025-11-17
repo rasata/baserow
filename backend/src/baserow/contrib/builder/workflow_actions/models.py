@@ -121,3 +121,11 @@ class CoreHTTPRequestWorkflowAction(BuilderWorkflowServiceAction):
 
 class CoreSMTPEmailWorkflowAction(BuilderWorkflowServiceAction):
     ...
+
+
+class AIAgentWorkflowAction(BuilderWorkflowServiceAction):
+    ...
+
+
+class SlackWriteMessageWorkflowAction(BuilderWorkflowServiceAction):
+    ...

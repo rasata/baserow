@@ -11,6 +11,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from loguru import logger
+from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -48,6 +49,7 @@ from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -60,8 +62,10 @@ from baserow.core.utils import (
 WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
 AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
+tracer = trace.get_tracer(__name__)
 
-class AutomationWorkflowHandler:
+
+class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
     allowed_fields = ["name", "allow_test_run_until", "state"]
 
     def get_workflow(
@@ -396,6 +400,7 @@ class AutomationWorkflowHandler:
             order=workflow.order,
             nodes=serialized_nodes,
             state=workflow.state,
+            graph=workflow.graph,
         )
 
     def _ops_count_for_import_workflow(
@@ -408,19 +413,6 @@ class AutomationWorkflowHandler:
 
         # Return zero for now, since we don't have Triggers and Actions yet.
         return 0
-
-    def _sort_serialized_nodes_by_priority(
-        self, serialized_nodes: List[AutomationNodeDict]
-    ) -> List[AutomationNodeDict]:
-        """
-        Sorts the serialized nodes so that root-level nodes (those without a parent)
-        are first, and then sorts by their `order` ASC.
-        """
-
-        def _node_priority_sort(n):
-            return n.get("parent_node_id") is not None, n.get("order", 0)
-
-        return sorted(serialized_nodes, key=_node_priority_sort)
 
     def import_nodes(
         self,
@@ -451,36 +443,17 @@ class AutomationWorkflowHandler:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         imported_nodes = []
-        prioritized_nodes = self._sort_serialized_nodes_by_priority(serialized_nodes)
 
-        # True if we have imported at least one node on last iteration
-        was_imported = True
-        while was_imported:
-            was_imported = False
-            workflow_node_mapping = id_mapping.get("automation_workflow_nodes", {})
-
-            for serialized_node in prioritized_nodes:
-                parent_node_id = serialized_node["parent_node_id"]
-                # check that the node has not already been imported in a
-                # previous pass or if the parent doesn't exist yet.
-                if serialized_node["id"] not in workflow_node_mapping and (
-                    parent_node_id is None or parent_node_id in workflow_node_mapping
-                ):
-                    imported_node = AutomationNodeHandler().import_node(
-                        workflow,
-                        serialized_node,
-                        id_mapping,
-                        import_export_config=import_export_config,
-                        files_zip=files_zip,
-                        storage=storage,
-                        cache=cache,
-                    )
-
-                    imported_nodes.append(imported_node)
-
-                    was_imported = True
-                    if progress:
-                        progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+        imported_nodes = AutomationNodeHandler().import_nodes(
+            workflow,
+            serialized_nodes,
+            id_mapping,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            progress=progress,
+        )
 
         return imported_nodes
 
@@ -543,6 +516,8 @@ class AutomationWorkflowHandler:
                 cache=cache,
             )
 
+            workflow_instance.get_graph().migrate_graph(id_mapping)
+
         return [i[0] for i in imported_workflows]
 
     def import_workflow(
@@ -601,6 +576,7 @@ class AutomationWorkflowHandler:
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
+            graph=serialized_workflow.get("graph", {}),
         )
 
         id_mapping["automation_workflows"][
@@ -978,3 +954,10 @@ class AutomationWorkflowHandler:
                 history.message = history_message
                 history.status = history_status
                 history.save()
+            else:
+                # sample_data was updated as it's a simulation we should tell to
+                # the frontend
+                simulate_until_node.service.specific.refresh_from_db(
+                    fields=["sample_data"]
+                )
+                automation_node_updated.send(self, user=None, node=simulate_until_node)

@@ -7,9 +7,9 @@ import it from '@baserow/modules/integrations/locales/it.json'
 import pl from '@baserow/modules/integrations/locales/pl.json'
 import ko from '@baserow/modules/integrations/locales/ko.json'
 
-import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
@@ -23,10 +23,15 @@ import {
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreHTTPRequestServiceType,
+  PeriodicTriggerServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
+  CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 export default (context) => {
   const { app, isDev } = context
@@ -49,6 +54,8 @@ export default (context) => {
     new LocalBaserowIntegrationType(context)
   )
   app.$registry.register('integration', new SMTPIntegrationType(context))
+  app.$registry.register('integration', new AIIntegrationType(context))
+  app.$registry.register('integration', new SlackBotIntegrationType(context))
 
   app.$registry.register('service', new LocalBaserowGetRowServiceType(context))
   app.$registry.register(
@@ -75,19 +82,20 @@ export default (context) => {
   app.$registry.register('service', new CoreSMTPEmailServiceType(context))
   app.$registry.register('service', new CoreRouterServiceType(context))
   app.$registry.register('service', new CoreHTTPTriggerServiceType(context))
-
-  if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
-    app.$registry.register(
-      'service',
-      new LocalBaserowRowsCreatedTriggerServiceType(context)
-    )
-    app.$registry.register(
-      'service',
-      new LocalBaserowRowsUpdatedTriggerServiceType(context)
-    )
-    app.$registry.register(
-      'service',
-      new LocalBaserowRowsDeletedTriggerServiceType(context)
-    )
-  }
+  app.$registry.register('service', new CoreIteratorServiceType(context))
+  app.$registry.register('service', new AIAgentServiceType(context))
+  app.$registry.register('service', new PeriodicTriggerServiceType(context))
+  app.$registry.register('service', new SlackWriteMessageServiceType(context))
+  app.$registry.register(
+    'service',
+    new LocalBaserowRowsCreatedTriggerServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowRowsUpdatedTriggerServiceType(context)
+  )
+  app.$registry.register(
+    'service',
+    new LocalBaserowRowsDeletedTriggerServiceType(context)
+  )
 }

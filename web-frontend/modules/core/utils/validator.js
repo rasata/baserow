@@ -25,6 +25,7 @@ export const ensureNumeric = (value, { allowNull = false } = {}) => {
       return Number(value)
     }
   }
+
   throw new Error(
     `Value '${value}' is not a valid number or convertible to a number.`
   )
@@ -182,14 +183,20 @@ export const ensureNonEmptyString = (value, options) => {
 /**
  * Ensures that the value is a boolean or convert it.
  * @param {*} value - The value to ensure as a boolean.
+ * @param {boolean} useStrict - Whether to be strict in how the value is interpreted.
  * @returns {boolean} The value as a boolean.
  */
-export const ensureBoolean = (value) => {
+export const ensureBoolean = (value, { useStrict = true } = {}) => {
   if (trueValues.includes(value)) {
     return true
   } else if (falseValues.includes(value)) {
     return false
   }
+
+  if (!useStrict) {
+    return Boolean(value)
+  }
+
   throw new Error('Value is not a valid boolean or convertible to a boolean.')
 }
 
@@ -226,7 +233,7 @@ export const ensureDate = (value, { allowEmpty = true } = {}) => {
  */
 export const ensureDateTime = (
   value,
-  { allowEmpty = true, format = moment.ISO_8601 } = {}
+  { allowEmpty = true, format = moment.ISO_8601, useStrict = true } = {}
 ) => {
   if (value === null || value === undefined || value === '') {
     if (!allowEmpty) {
@@ -237,7 +244,7 @@ export const ensureDateTime = (
   if (value instanceof Date) {
     return value
   } else {
-    const parsed = format ? moment(value, format, true) : moment(value)
+    const parsed = format ? moment(value, format, useStrict) : moment(value)
     if (!parsed.isValid()) {
       throw new TypeError(
         'Value is not a valid datetime or convertible to a datetime.'
@@ -245,4 +252,36 @@ export const ensureDateTime = (
     }
     return parsed.toDate()
   }
+}
+
+/**
+ * Ensures that the value is a valid object or convert it.
+ * @param {*} value - The value to ensure as an object
+ * @returns {Object} - The converted value as an object.
+ * @throws {Error} if `value` is not convertable to an object.
+ */
+export const ensureObject = (value) => {
+  // Return early if it's an object
+  if (value instanceof Object) {
+    return value
+  }
+
+  if (value === null || value === undefined) {
+    throw new TypeError(
+      'Value is not a valid object or convertible to an object.'
+    )
+  }
+
+  // If it's a string, try to parse it as JSON
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      throw new TypeError('Value is not a valid JSON.')
+    }
+  }
+
+  throw new TypeError(
+    'Value is not a valid object or convertible to an object.'
+  )
 }

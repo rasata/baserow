@@ -277,6 +277,14 @@ class BaserowEnterpriseConfig(AppConfig):
             dispatch_uid="sync_default_roles_after_migrate",
         )
 
+        # Make sure that the assistant knowledge base is up to date after running the
+        # migrations.
+        post_migrate.connect(
+            sync_assistant_knowledge_base,
+            sender=self,
+            dispatch_uid="sync_assistant_knowledge_base",
+        )
+
         from baserow_enterprise.teams.receivers import (
             connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects,
         )
@@ -302,8 +310,46 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
+        from baserow_enterprise.assistant.tools import (
+            CreateBuildersToolType,
+            GenerateDatabaseFormulaToolType,
+            GetTablesSchemaToolType,
+            ListBuildersToolType,
+            ListRowsToolType,
+            ListTablesToolType,
+            ListViewsToolType,
+            ListWorkflowsToolType,
+            NavigationToolType,
+            RowsToolFactoryToolType,
+            SearchDocsToolType,
+            TableAndFieldsToolFactoryToolType,
+            ViewsToolFactoryToolType,
+            WorkflowToolFactoryToolType,
+        )
+        from baserow_enterprise.assistant.tools.registries import (
+            assistant_tool_registry,
+        )
+
+        assistant_tool_registry.register(SearchDocsToolType())
+        assistant_tool_registry.register(NavigationToolType())
+
+        assistant_tool_registry.register(ListBuildersToolType())
+        assistant_tool_registry.register(CreateBuildersToolType())
+        assistant_tool_registry.register(ListTablesToolType())
+        assistant_tool_registry.register(GetTablesSchemaToolType())
+        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
+        assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
+        assistant_tool_registry.register(ListRowsToolType())
+        assistant_tool_registry.register(RowsToolFactoryToolType())
+        assistant_tool_registry.register(ListViewsToolType())
+        assistant_tool_registry.register(ViewsToolFactoryToolType())
+
+        assistant_tool_registry.register(ListWorkflowsToolType())
+        assistant_tool_registry.register(WorkflowToolFactoryToolType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.assistant.tasks  # noqa: F
         import baserow_enterprise.audit_log.signals  # noqa: F
         import baserow_enterprise.ws.signals  # noqa: F
 
@@ -370,3 +416,25 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                         role.operations.remove(
                             *[all_old_operations[op] for op in to_remove],
                         )
+
+
+def sync_assistant_knowledge_base(sender, **kwargs):
+    from baserow_enterprise.assistant.tasks import (
+        sync_assistant_knowledge_base as sync_assistant_knowledge_base_task,
+    )
+    from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+        KnowledgeBaseHandler,
+    )
+
+    if KnowledgeBaseHandler().can_have_knowledge_base():
+        print(
+            "Submitting the sync assistant knowledge base task to run asynchronously "
+            "in celery after the migration..."
+        )
+        sync_assistant_knowledge_base_task.delay()
+    else:
+        print(
+            "Skipping assistant knowledge base sync because this instance does not "
+            "have the `BASEROW_EMBEDDINGS_API_URL` environment variable "
+            "configured or the PostgreSQL server does not have the pgvector extension."
+        )

@@ -319,6 +319,10 @@ export class FieldType extends Registerable {
     return null
   }
 
+  getCompatibleFilterFieldType(field) {
+    return this
+  }
+
   /**
    * In some cases, for example with the kanban view or the gallery view, we want to
    * only show the visible cards. In order to calculate the correct position of
@@ -958,6 +962,21 @@ export class FieldType extends Registerable {
    */
   isEnabled(workspace) {
     return true
+  }
+
+  /**
+   * Can return a modal vue component that's opened when the user clicks in this
+   * field type, but `isEnabled` is false. Should return [component, props as {}]
+   */
+  getDisabledClickModal(workspace) {
+    return null
+  }
+
+  /**
+   * Can return a tooltip text that's shown on hover when the `isEnabled` is False.
+   */
+  getDisabledTooltip(workspace) {
+    return null
   }
 
   /**

@@ -120,6 +120,8 @@ import {
   DeleteRowWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
+  AIAgentWorkflowActionType,
+  SlackWriteMessageWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
 import {
@@ -149,6 +151,8 @@ import {
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
 import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
+import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -372,6 +376,10 @@ export default (context) => {
   )
   app.$registry.register(
     'workflowAction',
+    new AIAgentWorkflowActionType(context)
+  )
+  app.$registry.register(
+    'workflowAction',
     new CreateRowWorkflowActionType(context)
   )
   app.$registry.register(
@@ -381,6 +389,10 @@ export default (context) => {
   app.$registry.register(
     'workflowAction',
     new DeleteRowWorkflowActionType(context)
+  )
+  app.$registry.register(
+    'workflowAction',
+    new SlackWriteMessageWorkflowActionType(context)
   )
 
   app.$registry.register(
@@ -424,4 +436,6 @@ export default (context) => {
   app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
 
   app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
+
+  searchTypeRegistry.register(new BuilderSearchType())
 }

@@ -1,106 +1,115 @@
 <template>
   <div
-    class="workflow-node-content__wrapper"
+    class="workflow-node-content"
     :class="{
-      'workflow-node-content__wrapper--dragging': isDragging,
+      'workflow-node-content--selected': selected,
+      'workflow-node-content--dragging': isDragging,
+      'workflow-node-content--utility': nodeType.isUtilityNode,
     }"
+    :title="!isInError ? displayLabel : ''"
+    :data-before-label="getDataBeforeLabel"
     :draggable="isDraggable"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @mousedown.stop
     @click="emit('select-node', node)"
   >
-    <div
-      class="workflow-node-content"
-      :class="{
-        'workflow-node-content--selected': selected,
-        'workflow-node-content--utility': nodeType.isUtilityNode,
-      }"
-      :title="displayLabel"
-      :data-before-label="getDataBeforeLabel"
-    >
-      <div v-if="isDraggable" class="workflow-node-content__drag-handle"></div>
-      <div class="workflow-node-content__icon">
-        <i
-          :class="{
-            loading: loading,
-            'iconoir-hammer': !loading && !isInteractionReady,
-            [nodeType.iconClass]: !loading && isInteractionReady,
-          }"
-        ></i>
-      </div>
-
-      <h1 class="workflow-node-content__title">{{ displayLabel }}</h1>
-
-      <Badge
-        v-if="isInteractionReady && isInError"
-        rounded
-        color="yellow"
-        size="large"
-      >
-        {{ $t('workflowNode.actionConfigure') }}
-      </Badge>
-
-      <div
-        v-if="isInteractionReady"
-        class="workflow-node-content__more--wrapper"
-        draggable="false"
-        @mousedown.prevent
-      >
-        <a
-          ref="editNodeContextToggle"
-          role="button"
-          :title="$t('workflowNode.nodeOptions')"
-          class="workflow-node-content__more-icon"
-          @click="openEditContext()"
-        >
-          <i class="baserow-icon-more-vertical"></i>
-        </a>
-      </div>
-
-      <Context
-        ref="editNodeContext"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
-        <div class="context__menu-title">
-          {{ nodeType.getDefaultLabel({ automation, node }) }} ({{ node.id }})
-        </div>
-        <ul class="context__menu">
-          <li class="context__menu-item">
-            <a
-              :key="getReplaceErrorMessage"
-              v-tooltip="getReplaceErrorMessage || null"
-              role="button"
-              class="context__menu-item-link context__menu-item-link--switch"
-              :class="{ disabled: getReplaceErrorMessage }"
-              @click="!getReplaceErrorMessage && openReplaceContext()"
-            >
-              <i class="context__menu-item-icon baserow-icon-history"></i>
-              {{ $t('workflowNode.moreReplace') }}
-            </a>
-          </li>
-          <li class="context__menu-item">
-            <a
-              :key="getDeleteErrorMessage"
-              v-tooltip="getDeleteErrorMessage || null"
-              role="button"
-              class="context__menu-item-link context__menu-item-link--delete"
-              :class="{ disabled: getDeleteErrorMessage }"
-              @click="!getDeleteErrorMessage && emit('remove-node', node.id)"
-            >
-              <i class="context__menu-item-icon iconoir-bin"></i>
-              {{ $t('workflowNode.actionDelete') }}
-            </a>
-          </li>
-        </ul>
-      </Context>
-      <WorkflowNodeContext
-        ref="replaceNodeContext"
-        :node="node"
-        @change="emit('replace-node', { node: node, type: $event })"
-      />
+    <div v-if="isDraggable" class="workflow-node-content__drag-handle"></div>
+    <div class="workflow-node-content__icon">
+      <i
+        v-if="nodeType.iconClass"
+        :class="{
+          loading: loading,
+          'iconoir-hammer': !loading && !isInteractionReady,
+          [nodeType.iconClass]: !loading && isInteractionReady,
+        }"
+      ></i>
+      <img v-else :alt="nodeType.name" :src="nodeType.image" />
     </div>
+
+    <h1 class="workflow-node-content__title">{{ displayLabel }}</h1>
+
+    <Badge
+      v-if="isInteractionReady && isInError"
+      :key="errorMessage"
+      v-tooltip="errorMessage"
+      rounded
+      color="yellow"
+      size="large"
+    >
+      {{ $t('workflowNode.actionConfigure') }}
+    </Badge>
+
+    <div
+      v-if="isInteractionReady"
+      class="workflow-node-content__more--wrapper"
+      draggable="false"
+      @mousedown.prevent
+    >
+      <a
+        ref="editNodeContextToggle"
+        role="button"
+        :title="$t('workflowNode.nodeOptions')"
+        class="workflow-node-content__more-icon"
+        @click="openEditContext()"
+      >
+        <i class="baserow-icon-more-vertical"></i>
+      </a>
+    </div>
+
+    <Context
+      ref="editNodeContext"
+      overflow-scroll
+      max-height-if-outside-viewport
+    >
+      <div class="context__menu-title">
+        {{ nodeType.getDefaultLabel({ automation, node }) }} ({{ node.id }})
+      </div>
+      <ul class="context__menu">
+        <li class="context__menu-item">
+          <a
+            :key="getReplaceErrorMessage"
+            v-tooltip="getReplaceErrorMessage || null"
+            role="button"
+            class="context__menu-item-link context__menu-item-link--switch"
+            :class="{ disabled: getReplaceErrorMessage }"
+            @click="!getReplaceErrorMessage && openReplaceContext()"
+          >
+            <i class="context__menu-item-icon baserow-icon-history"></i>
+            {{ $t('workflowNode.moreReplace') }}
+          </a>
+        </li>
+        <li v-if="canBeDuplicated" class="context__menu-item">
+          <a
+            role="button"
+            class="context__menu-item-link"
+            @click="emit('duplicate-node', node.id)"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('workflowNode.moreDuplicate') }}
+          </a>
+        </li>
+        <li class="context__menu-item context__menu-item--with-separator">
+          <a
+            :key="getDeleteErrorMessage"
+            v-tooltip="getDeleteErrorMessage || null"
+            role="button"
+            class="context__menu-item-link context__menu-item-link--delete"
+            :class="{ disabled: getDeleteErrorMessage }"
+            @click="!getDeleteErrorMessage && emit('remove-node', node.id)"
+          >
+            <i class="context__menu-item-icon iconoir-bin"></i>
+            {{ $t('workflowNode.actionDelete') }}
+          </a>
+        </li>
+      </ul>
+    </Context>
+    <WorkflowNodeContext
+      ref="replaceNodeContext"
+      :node="node"
+      :only-trigger="nodeType.isTrigger"
+      @change="emit('replace-node', { node: node, type: $event })"
+    />
   </div>
 </template>
 
@@ -110,7 +119,7 @@ import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
-import { CoreRouterNodeType } from '@baserow/modules/automation/nodeTypes'
+import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -136,7 +145,12 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['remove-node', 'replace-node', 'select-node'])
+const emit = defineEmits([
+  'remove-node',
+  'replace-node',
+  'select-node',
+  'duplicate-node',
+])
 
 const isDragging = ref(false)
 
@@ -210,6 +224,18 @@ const isInError = computed(() => {
 })
 
 /**
+ * This computed property retrieves the error message associated with
+ * the node if it is in an error state.
+ * @type {string} - The error message for the node.
+ */
+const errorMessage = computed(() => {
+  return nodeType.value.getErrorMessage({
+    service: props.node.service,
+    node: props.node,
+  })
+})
+
+/**
  * This computed property checks if the node is ready for interaction.
  * A node is considered ready if it is not in read-only mode and not in
  * debug mode (i.e. it is not being debugged).
@@ -229,11 +255,7 @@ const isInteractionReady = computed(() => {
  */
 const displayLabel = computed(() => {
   return props.debug
-    ? app.i18n.t('workflowNode.displayLabelDebug', {
-        id: props.node.id,
-        previousNodeId: props.node.previous_node_id || 'none',
-        outputUid: props.node.previous_node_output || 'none',
-      })
+    ? `ID: ${props.node.id}`
     : nodeType.value.getLabel({
         automation: automation.value,
         node: props.node,
@@ -267,30 +289,30 @@ const getDeleteErrorMessage = computed(() => {
 
 /**
  * This computed property determines the label that should be displayed
- * before the node label in the workflow editor. It checks the previous node
- * in the workflow to determine if it is a router node or if the current node
- * is an output node. Based on these conditions, it returns the appropriate
- * label for the node.
- * @returns {string} - The label to display before the node label.
+ * before the node label in the workflow editor.
+ * @returns {string} - The label to display before the node.
  */
 const getDataBeforeLabel = computed(() => {
-  const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
-    workflow.value,
-    props.node
-  )
-  // TODO use a generic way to handle that not specific to router node
-  const previousNodeIsRouter =
-    previousNode?.type === CoreRouterNodeType.getType()
-  const isOutputNode = props.node.previous_node_output.length > 0
-  switch (true) {
-    case nodeType.value.isTrigger:
-      return app.i18n.t('workflowNode.beforeLabelTrigger')
-    case isOutputNode:
-      return app.i18n.t('workflowNode.beforeLabelCondition')
-    case previousNodeIsRouter && !isOutputNode:
-      return app.i18n.t('workflowNode.beforeLabelConditionDefault')
-    default:
-      return app.i18n.t('workflowNode.beforeLabelAction')
+  const [referenceNode, position, output] = new NodeGraphHandler(
+    workflow.value
+  ).getNodePosition(props.node)
+
+  if (referenceNode === null) {
+    return app.i18n.t('workflowNode.beforeLabelTrigger')
   }
+  const referenceNodeType = app.$registry.get('node', referenceNode.type)
+  return referenceNodeType.getBeforeLabel({
+    workflow: workflow.value,
+    node: referenceNode,
+    position,
+    output,
+  })
+})
+
+const canBeDuplicated = computed(() => {
+  return nodeType.value.isDuplicable({
+    workflow: workflow.value,
+    node: props.node,
+  })
 })
 </script>

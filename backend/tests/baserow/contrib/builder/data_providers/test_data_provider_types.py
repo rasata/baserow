@@ -39,6 +39,7 @@ from baserow.core.formula.exceptions import (
     InvalidRuntimeFormula,
 )
 from baserow.core.formula.registries import DataProviderType
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -195,6 +196,67 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
         )
         == "Orange"
     )
+
+
+@pytest.mark.django_db
+def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+            ["Volkswagen", "White"],
+            ["Volkswagen", "Green"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+        name="Items",
+    )
+
+    data_source_provider = DataSourceDataProviderType()
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", fields[1].db_column]
+        )
+        == "Blue"
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "2", fields[1].db_column]
+        )
+        == "White"
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", "id"]
+        )
+        == rows[0].id
+    )
+
+    assert data_source_provider.get_data_chunk(
+        dispatch_context, [data_source.id, "*", fields[1].db_column]
+    ) == ["Blue", "Orange", "White", "Green"]
 
 
 @pytest.mark.django_db
@@ -729,9 +791,12 @@ def test_data_source_formula_import_only_datasource(data_fixture):
     id_mapping = defaultdict(lambda: MirrorDict())
     id_mapping["builder_data_sources"] = {data_source.id: data_source2.id}
 
-    result = import_formula(f"get('data_source.{data_source.id}.field_10')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create(f"get('data_source.{data_source.id}.field_10')"),
+        id_mapping,
+    )
 
-    assert result == f"get('data_source.{data_source2.id}.field_10')"
+    assert result["formula"] == f"get('data_source.{data_source2.id}.field_10')"
 
 
 @pytest.mark.django_db
@@ -752,10 +817,15 @@ def test_data_source_formula_import_get_row_datasource_and_field(data_fixture):
     id_mapping["database_fields"] = {field_1.id: field_2.id}
 
     result = import_formula(
-        f"get('data_source.{data_source.id}.field_{field_1.id}')", id_mapping
+        BaserowFormulaObject.create(
+            f"get('data_source.{data_source.id}.field_{field_1.id}')"
+        ),
+        id_mapping,
     )
 
-    assert result == f"get('data_source.{data_source2.id}.field_{field_2.id}')"
+    assert (
+        result["formula"] == f"get('data_source.{data_source2.id}.field_{field_2.id}')"
+    )
 
 
 @pytest.mark.django_db
@@ -774,10 +844,16 @@ def test_data_source_formula_import_list_row_datasource_and_field(data_fixture):
     id_mapping["database_fields"] = {field_1.id: field_2.id}
 
     result = import_formula(
-        f"get('data_source.{data_source.id}.10.field_{field_1.id}')", id_mapping
+        BaserowFormulaObject.create(
+            f"get('data_source.{data_source.id}.10.field_{field_1.id}')"
+        ),
+        id_mapping,
     )
 
-    assert result == f"get('data_source.{data_source2.id}.10.field_{field_2.id}')"
+    assert (
+        result["formula"]
+        == f"get('data_source.{data_source2.id}.10.field_{field_2.id}')"
+    )
 
 
 @pytest.mark.django_db
@@ -785,15 +861,19 @@ def test_data_source_formula_import_missing_get_row_datasource(data_fixture):
     id_mapping = defaultdict(lambda: MirrorDict())
     id_mapping["builder_data_sources"] = {}
 
-    result = import_formula(f"get('data_source.42.field_24')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create("get('data_source.42.field_24')"), id_mapping
+    )
 
-    assert result == f"get('data_source.42.field_24')"
+    assert result["formula"] == f"get('data_source.42.field_24')"
 
     id_mapping["builder_data_sources"] = {42: 42}
 
-    result = import_formula(f"get('data_source.42.field_24')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create("get('data_source.42.field_24')"), id_mapping
+    )
 
-    assert result == f"get('data_source.42.field_24')"
+    assert result["formula"] == "get('data_source.42.field_24')"
 
 
 @pytest.mark.django_db
@@ -921,12 +1001,12 @@ def test_table_element_formula_migration_with_current_row_provider(data_fixture)
     id_mapping["database_fields"] = {fields[0].id: fields2[0].id}
 
     result = import_formula(
-        f"get('current_record.field_{fields[0].id}')",
+        BaserowFormulaObject.create(f"get('current_record.field_{fields[0].id}')"),
         id_mapping,
         data_source_id=data_source2.id,
     )
 
-    assert result == f"get('current_record.field_{fields2[0].id}')"
+    assert result["formula"] == f"get('current_record.field_{fields2[0].id}')"
 
 
 @pytest.mark.django_db

@@ -316,13 +316,11 @@
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
     "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
-    "assistant": "AI Assistant",
-    "assistantContent": "Boost your productivity with AI. Use natural language to create, analyze, and visualize your data directly within Baserow.",
     "dateDependency": "Date dependency",
     "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly."
   },
   "assistantSidebarItem": {
-    "title": "AI Assistant"
+    "title": "Kuma AI"
   },
   "assistantPanel": {
     "title": "AI Assistant",
@@ -332,18 +330,53 @@
   },
   "assistantWelcomeMessage": {
     "greet": "Hey {name}",
-    "question": "how can I help?",
-    "subtitle": "I'm here to support you in handling your data."
+    "question": "my name is Kuma!",
+    "subtitle": "I’ll help you bear the load so it never feels heavy. Choose from the prompts below or just tell me what you need!",
+    "subtitleWithoutSuggestions": "I’ll help you bear the load so it never feels heavy. Just tell me what you need!",
+    "promptCreateDatabaseTitle": "Create a database",
+    "promptCreateDatabasePrompt": "Build a project management database.",
+    "promptCreateAutomationTitle": "Create an automation",
+    "promptCreateAutomationPrompt": "Create an automation that every Tuesday in the morning asks in the Slack developers channel if there is anything to demo.",
+    "promptInviteUsersTitle": "Invite users",
+    "promptInviteUsersPrompt": "How do I invite users to my workspace?",
+    "promptCreateTableTitle": "Create a table",
+    "promptCreateTablePrompt": "Create a new table named tasks.",
+    "promptWhichTablesTitle": "Which tables",
+    "promptWhichTablesPrompt": "Which tables do I have in this database?",
+    "promptCreateFormTitle": "Create a form",
+    "promptCreateFormPrompt": "Create a form for this table.",
+    "promptCreateFilterTitle": "Create a filter",
+    "promptCreateFilterPrompt": "Show only rows where the primary field is empty."
   },
   "assistantInputMessage": {
     "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
-    "send": "Send message"
+    "send": "Send message",
+    "stop": "Stop generation"
+  },
+  "assistant": {
+    "statusThinking": "Thinking...",
+    "statusAnswering": "Answering...",
+    "statusCancelling": "Cancelling...",
+    "messageCancelled": "Message cancelled"
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",
     "loading": "Loading chat history..."
+  },
+  "assistantMessageSources": {
+    "sources": "{count} source | {count} sources"
+  },
+  "assistantMessageList": {
+    "disclaimer": "Kuma can make mistakes, please double-check responses"
+  },
+  "assistantMessageActions": {
+    "feedbackContextTitle": "Help us improve",
+    "feedbackContextPlaceholder": "What could we improve? (optional)",
+    "copiedToClipboard": "Copied to clipboard",
+    "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
+    "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -650,5 +683,16 @@
     "includeWeekendsLabel": "Include weekends when calculating durations",
     "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
     "fieldInvalidTitle": "Date dependency field error"
+  },
+  "dateDependency": {
+    "invalidChildRow": "Successor row is invalid",
+    "invalidParentRow": "Predecessor row is invalid",
+    "invalidParentEndDateAfterChildStartDate": "Predecessor row end date is after successor start date",
+    "invalidStartDateEmpty": "Start date is empty",
+    "invalidEndDateEmpty": "End date is empty",
+    "invalidEndDateBeforeStartDate": "End date is before start date",
+    "invalidDurationEmpty": "Duration is empty",
+    "invalidDurationValue": "Duration value is not valid",
+    "invalidDurationMismatch": "Duration value mismatch"
   }
 }

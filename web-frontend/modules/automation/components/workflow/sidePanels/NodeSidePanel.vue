@@ -57,8 +57,10 @@ import SimulateDispatchNodeForm from '@baserow/modules/automation/components/for
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 import _ from 'lodash'
 import { helpers, maxLength } from '@vuelidate/validators'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const store = useStore()
+
 const { app } = useContext()
 
 provide('formulaComponent', AutomationBuilderFormulaInput)
@@ -123,7 +125,7 @@ const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,
 }) => {
-  let updatedNode = { ...node.value }
+  let updatedNode = {}
   let anyChanges = false
 
   // Handle node changes first
@@ -144,7 +146,7 @@ const handleNodeChange = async ({
     )
 
     if (Object.keys(nodeDifferences).length > 0) {
-      updatedNode = { ...updatedNode, ...nodeDifferences }
+      updatedNode = nodeDifferences
       anyChanges = true
     }
   }
@@ -164,7 +166,7 @@ const handleNodeChange = async ({
     )
 
     if (Object.keys(serviceDifferences).length > 0) {
-      updatedNode.service = { ...updatedNode.service, ...serviceDifferences }
+      updatedNode.service = { ...node.value.service, ...serviceDifferences }
       anyChanges = true
     }
   }
@@ -174,11 +176,15 @@ const handleNodeChange = async ({
     return
   }
 
-  await store.dispatch('automationWorkflowNode/updateDebounced', {
-    workflow: workflow.value,
-    node: node.value,
-    values: updatedNode,
-  })
+  try {
+    await store.dispatch('automationWorkflowNode/updateDebounced', {
+      workflow: workflow.value,
+      node: node.value,
+      values: updatedNode,
+    })
+  } catch (error) {
+    notifyIf(error, 'automationWorkflow')
+  }
 }
 
 const nodeLoading = computed(() => {
@@ -191,8 +197,10 @@ const nodeLoading = computed(() => {
  * perform the check here, and pass the function as a prop into the form.
  */
 const nodeEdgeInUseFn = (edge) => {
-  return store.getters['automationWorkflowNode/getNodes'](workflow.value).some(
-    (node) => node.previous_node_output === edge.uid
-  )
+  return !!store.getters['automationWorkflowNode/getNextNodes'](
+    workflow.value,
+    node.value,
+    edge.uid
+  ).length
 }
 </script>

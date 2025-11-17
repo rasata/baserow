@@ -27,7 +27,6 @@ from baserow.config.settings.utils import (
     try_float,
     try_int,
 )
-from baserow.core.feature_flags import FF_AUTOMATION
 from baserow.core.telemetry.utils import otel_is_enabled
 from baserow.throttling_types import RateLimit
 from baserow.version import VERSION
@@ -456,9 +455,9 @@ SPECTACULAR_SETTINGS = {
     "CONTACT": {"url": "https://baserow.io/contact"},
     "LICENSE": {
         "name": "MIT",
-        "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
+        "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "1.35.3",
+    "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -1040,11 +1039,19 @@ BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
     os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
 )
 
+OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
 
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
+# The minimum amount of minutes the periodic task's "minute" interval
+# supports. Self-hosters can run every minute, if they choose to.
+INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
+    os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
+)
+
+TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1130,10 +1137,9 @@ PERMISSION_MANAGERS = [
     "write_field_values",
     "role",
     "basic",
+    "automation_workflow",
+    "automation_node",
 ]
-
-if "*" in FEATURE_FLAGS or FF_AUTOMATION.lower() in FEATURE_FLAGS:
-    PERMISSION_MANAGERS.extend(["automation_workflow", "automation_node"])
 
 if "baserow_enterprise" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("write_field_values")
@@ -1282,6 +1288,7 @@ if SENTRY_DSN:
 
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
+BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None
 BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
@@ -1344,6 +1351,7 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
+BASEROW_EMBEDDINGS_API_URL = os.getenv("BASEROW_EMBEDDINGS_API_URL", "")
 
 # -- CACHALOT SETTINGS --
 

@@ -103,6 +103,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.cache import global_cache
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -202,6 +203,43 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     class SerializedDict(ServiceDict):
         table_id: int
+
+    def _convert_allowed_field_names(self, service, allowed_fields):
+        """
+        Convert the `field_x` to human fields.
+        """
+
+        mapping = {
+            field_obj["field"].db_column: field_obj["field"].name
+            for field_obj in self.get_table_field_objects(service) or []
+        }
+        return [mapping.get(f, f) for f in allowed_fields]
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        """
+        Remove the non public fields from the result.
+        """
+
+        allowed_field_names = self._convert_allowed_field_names(
+            service, allowed_field_names
+        )
+
+        return super().sanitize_result(service, result, allowed_field_names)
+
+    def prepare_value_path(self, service: Service, path: List[str]):
+        if len(path) < 1:
+            return path
+
+        db_column, *rest = path
+
+        human_name = db_column
+
+        for field_obj in self.get_table_field_objects(service) or []:
+            if field_obj["field"].db_column == db_column:
+                human_name = field_obj["field"].name
+                break
+
+        return [human_name, *rest]
 
     def build_queryset(
         self,
@@ -1052,6 +1090,7 @@ class LocalBaserowListRowsUserServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
 
         return DispatchResult(
@@ -1227,6 +1266,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         return {
             **super().serializer_field_overrides,
             **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
             "field_id": serializers.IntegerField(
                 required=False,
                 allow_null=True,
@@ -1590,6 +1630,7 @@ class LocalBaserowGetRowUserServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
 
         serialized_row = serializer(dispatch_data["data"]).data
@@ -1761,7 +1802,7 @@ class LocalBaserowUpsertRowServiceType(
 
         # Return field_mapping formulas
         for field_mapping in service.field_mappings.all():
-            new_formula = yield field_mapping.value
+            new_formula = yield BaserowFormulaObject.to_formula(field_mapping.value)
             if new_formula is not None:
                 field_mapping.value = new_formula
                 yield field_mapping
@@ -2080,6 +2121,7 @@ class LocalBaserowUpsertRowServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
@@ -2242,13 +2284,17 @@ class LocalBaserowRowsSignalServiceType(
         **kwargs,
     ):
         serializer = get_row_serializer_class(
-            model,
-            RowSerializer,
-            is_response=True,
+            model, RowSerializer, is_response=True, user_field_names=True
         )
+
+        data_to_process = {
+            "results": serializer(rows, many=True).data,
+            "has_next_page": False,
+        }
+
         self._process_event(
             self.model_class.objects.filter(table=table),
-            serializer(rows, many=True).data,
+            data_to_process,
             user=user,
         )
 

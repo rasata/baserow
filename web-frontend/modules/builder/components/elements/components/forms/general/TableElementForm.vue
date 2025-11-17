@@ -81,7 +81,11 @@
         :placeholder="$t('elementForms.textInputPlaceholder')"
       />
     </FormGroup>
-    <FormSection class="margin-bottom-2" :title="$t('tableElementForm.fields')">
+    <FormSection
+      :key="element.data_source_id"
+      class="margin-bottom-2"
+      :title="$t('tableElementForm.fields')"
+    >
       <template v-if="values.fields?.length">
         <ButtonText
           v-show="selectedDataSourceReturnsList"
@@ -304,7 +308,7 @@ export default {
         items_per_page: 1,
         styles: {},
         orientation: {},
-        button_load_more_label: '',
+        button_load_more_label: {},
       },
     }
   },
@@ -345,7 +349,7 @@ export default {
           this.$t('tableElementForm.fieldDefaultName'),
           this.v$.values.fields.$model.map(({ name }) => name)
         ),
-        value: '',
+        value: {},
         type: 'text',
         id: uuid(), // Temporary id
         uid: uuid(),

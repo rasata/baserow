@@ -6,7 +6,9 @@ from typing import Any, List, Optional, Set, Type, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
+from django.db.models import Expression, F
+from django.db.models import Field as DjangoField
+from django.db.models import Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
@@ -58,6 +60,7 @@ from baserow.contrib.database.formula.ast.tree import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     ComparisonOperator,
+    JSONArrayCompareIntervalValueExpr,
     JSONArrayCompareNumericValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -809,6 +812,31 @@ class BaserowFormulaDurationType(
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(
             field_name, "value", "interval", output_field=models.DurationField()
+        )
+
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
+    ) -> "OptionallyAnnotatedQ":
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return Q()
+
+        return get_array_json_filter_expression(
+            JSONArrayCompareIntervalValueExpr,
+            field_name,
+            Value(value),
+            comparison_op=comparison_op,
+        )
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        return self.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field, ComparisonOperator.EQUAL
         )
 
 
@@ -1694,13 +1722,51 @@ class BaserowFormulaMultipleSelectType(
 
 
 class BaserowFormulaMultipleCollaboratorsType(
-    HasValueEmptyFilterSupport, BaserowJSONBObjectBaseType
+    HasValueContainsWordFilterSupport,
+    HasValueContainsFilterSupport,
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    BaserowJSONBObjectBaseType,
 ):
     type = "multiple_collaborators"
     baserow_field_type = "multiple_collaborators"
     can_order_by = False
     can_order_by_in_array = False
     can_group_by = False
+
+    def get_in_array_contains_word_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_contains_word_filter_expr(
+            model_field, value, query_path="$[*].value.first_name"
+        )
+
+    def get_in_array_contains_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_contains_filter_expr(
+            model_field, value, query_path="$[*].value.first_name"
+        )
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        try:
+            value = [int(value)]
+
+        except (TypeError, ValueError):
+            return Q()
+
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, value, query_path="$[*].value.id"
+        )
+
+    def get_in_array_empty_query(
+        self, field_name: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [0], query_path="$[*].value.size()"
+        )
 
     def get_all_empty_query(
         self, field_name: str, model_field: Field, field, in_array: bool = True

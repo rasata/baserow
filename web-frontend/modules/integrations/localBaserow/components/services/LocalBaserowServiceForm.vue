@@ -9,7 +9,6 @@
     >
       <IntegrationDropdown
         v-model="values.integration_id"
-        auto-select-first
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
@@ -104,7 +103,7 @@ export default {
     const values = { table_id: null, integration_id: null }
     const allowedValues = ['table_id', 'integration_id']
     if (this.enableRowId) {
-      values.row_id = null
+      values.row_id = {}
       allowedValues.push('row_id')
     }
     if (this.enableViewPicker) {
@@ -158,7 +157,7 @@ export default {
     'values.table_id': {
       handler(newValue, oldValue) {
         if (this.enableRowId && oldValue && newValue !== oldValue) {
-          this.values.row_id = ''
+          this.values.row_id = {}
         }
       },
     },

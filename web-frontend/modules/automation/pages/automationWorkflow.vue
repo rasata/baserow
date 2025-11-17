@@ -1,5 +1,5 @@
 <template>
-  <div class="automation-app">
+  <div class="automation-workflow">
     <AutomationHeader
       v-if="automation"
       :automation="automation"
@@ -13,7 +13,11 @@
       }"
     >
       <div v-if="workflowLoading" class="loading"></div>
-      <div v-else class="automation-workflow__editor">
+      <div
+        v-else
+        class="automation-workflow__editor"
+        data-highlight="automation-editor"
+      >
         <client-only>
           <WorkflowEditor
             v-model="selectedNodeId"
@@ -23,11 +27,15 @@
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
             @move-node="handleMoveNode"
+            @duplicate-node="handleDuplicateNode"
           />
         </client-only>
       </div>
       <div v-if="activeSidePanel" class="automation-workflow__side-panel">
-        <EditorSidePanels :active-side-panel="activeSidePanel" />
+        <EditorSidePanels
+          :active-side-panel="activeSidePanel"
+          :data-highlight="activeSidePanelType.guidedTourAttr"
+        />
       </div>
     </div>
   </div>
@@ -39,6 +47,7 @@ import AutomationHeader from '@baserow/modules/automation/components/AutomationH
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'AutomationWorkflow',
@@ -132,12 +141,17 @@ export default {
       if (!this.workflow) {
         return []
       }
-      return this.$store.getters['automationWorkflowNode/getNodesOrdered'](
+      return this.$store.getters['automationWorkflowNode/getNodes'](
         this.workflow
       )
     },
     activeSidePanel() {
       return this.$store.getters['automationWorkflow/getActiveSidePanel']
+    },
+    activeSidePanelType() {
+      return this.activeSidePanel
+        ? this.$registry.get('editorSidePanel', this.activeSidePanel)
+        : null
     },
     selectedNodeId: {
       get() {
@@ -165,24 +179,25 @@ export default {
     handleDebugToggle(newDebugState) {
       this.workflowDebug = newDebugState
     },
-    async handleAddNode({ type, previousNodeId, previousNodeOutput }) {
+    async handleAddNode({ type, referenceNode, position, output }) {
       try {
         this.isAddingNode = true
         await this.$store.dispatch('automationWorkflowNode/create', {
           workflow: this.workflow,
           type,
-          previousNodeId,
-          previousNodeOutput,
+          referenceNode,
+          position,
+          output,
         })
       } catch (err) {
-        console.error('Failed to add node:', err)
+        console.error('Failed to add node:', `${err}`)
+        notifyIf(err, 'automation')
       } finally {
         this.isAddingNode = false
       }
     },
     async handleRemoveNode(nodeId) {
       if (!this.workflow) {
-        console.error('workflow is not available to remove a node.')
         return
       }
       try {
@@ -192,14 +207,20 @@ export default {
         })
       } catch (err) {
         console.error('Failed to delete node:', err)
+        notifyIf(err, 'automation')
       }
     },
     async handleReplaceNode({ node, type }) {
-      await this.$store.dispatch('automationWorkflowNode/replace', {
-        workflow: this.workflow,
-        nodeId: parseInt(node.id),
-        newType: type,
-      })
+      try {
+        await this.$store.dispatch('automationWorkflowNode/replace', {
+          workflow: this.workflow,
+          nodeId: parseInt(node.id),
+          newType: type,
+        })
+      } catch (err) {
+        console.error('Failed to replace node:', err)
+        notifyIf(err, 'automation')
+      }
     },
     onRouteChange(_, from, next) {
       const automation = this.$store.getters['application/get'](
@@ -224,18 +245,31 @@ export default {
       next()
     },
     async handleMoveNode(moveData) {
-      const originNodeId =
+      const movedNodeId =
         this.$store.getters['automationWorkflowNode/getDraggingNodeId']
+
       this.$store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
-      if (!originNodeId) {
+
+      if (!movedNodeId) {
         return
       }
-      await this.$store.dispatch('automationWorkflowNode/move', {
+      try {
+        await this.$store.dispatch('automationWorkflowNode/move', {
+          workflow: this.workflow,
+          moveData: {
+            movedNodeId,
+            ...moveData,
+          },
+        })
+      } catch (err) {
+        console.error('Failed to move node:', err)
+        notifyIf(err, 'automation')
+      }
+    },
+    async handleDuplicateNode(nodeId) {
+      await this.$store.dispatch('automationWorkflowNode/duplicate', {
         workflow: this.workflow,
-        moveData: {
-          originNodeId,
-          ...moveData,
-        },
+        nodeId,
       })
     },
   },

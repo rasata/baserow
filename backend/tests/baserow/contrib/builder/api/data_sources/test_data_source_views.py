@@ -17,6 +17,12 @@ from rest_framework.status import (
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaObject,
+)
 from baserow.core.services.models import Service
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
@@ -247,7 +253,7 @@ def test_update_data_source(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["view_id"] == view.id
     assert response.json()["table_id"] == table.id
-    assert response.json()["row_id"] == '"test"'
+    assert response.json()["row_id"]["formula"] == '"test"'
     assert response.json()["name"] == "name test"
 
 
@@ -355,13 +361,21 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 {
                     "field": text_field.id,
                     "type": "equals",
-                    "value": "foobar",
+                    "value": BaserowFormulaObject(
+                        formula="foobar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
                     "value_is_formula": False,
                 },
                 {
                     "field": formula_field.id,
                     "type": "equals",
-                    "value": "get('page_parameter.id')",
+                    "value": BaserowFormulaObject(
+                        formula="get('page_parameter.id')",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    ),
                     "value_is_formula": True,
                 },
             ]
@@ -378,7 +392,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "order": service_filters[0].order,
             "field": text_field.id,
             "type": "equals",
-            "value": "foobar",
+            "value": BaserowFormulaObject(
+                formula="foobar",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_RAW,
+            ),
             "trashed": False,
             "value_is_formula": False,
         },
@@ -388,7 +406,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "field": formula_field.id,
             "type": "equals",
             "trashed": False,
-            "value": "get('page_parameter.id')",
+            "value": BaserowFormulaObject(
+                formula="get('page_parameter.id')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "value_is_formula": True,
         },
     ]
@@ -415,7 +437,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                     "service": data_source1.service_id,
                     "field": text_field.id,
                     "type": "equals",
-                    "value": "foobar",
+                    "value": BaserowFormulaObject(
+                        formula="foobar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
                     "value_is_formula": False,
                 }
             ]
@@ -432,7 +458,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "order": 0,
             "field": text_field.id,
             "type": "equals",
-            "value": "foobar",
+            "value": BaserowFormulaObject(
+                formula="foobar",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_RAW,
+            ),
             "trashed": False,
             "value_is_formula": False,
         }
@@ -810,8 +840,8 @@ def test_dispatch_data_source(api_client, data_fixture):
     assert response.json() == {
         "id": 2,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
 
@@ -1013,14 +1043,14 @@ def test_dispatch_data_source_with_adhoc_filters(api_client, data_fixture):
             {
                 "id": 1,
                 "order": AnyStr(),
-                filterable_field.db_column: "Peter",
-                private_field.db_column: "111",
+                filterable_field.name: "Peter",
+                private_field.name: "111",
             },
             {
                 "id": 4,
                 "order": AnyStr(),
-                filterable_field.db_column: "Jérémie",
-                private_field.db_column: "444",
+                filterable_field.name: "Jérémie",
+                private_field.name: "444",
             },
         ],
         "has_next_page": False,
@@ -1112,26 +1142,26 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
             {
                 "id": 3,
                 "order": AnyStr(),
-                sortable_field.db_column: "Tsering",
-                private_field.db_column: AnyStr(),
+                sortable_field.name: "Tsering",
+                private_field.name: AnyStr(),
             },
             {
                 "id": 1,
                 "order": AnyStr(),
-                sortable_field.db_column: "Peter",
-                private_field.db_column: AnyStr(),
+                sortable_field.name: "Peter",
+                private_field.name: AnyStr(),
             },
             {
                 "id": 4,
                 "order": AnyStr(),
-                sortable_field.db_column: "Jérémie",
-                private_field.db_column: AnyStr(),
+                sortable_field.name: "Jérémie",
+                private_field.name: AnyStr(),
             },
             {
                 "id": 2,
                 "order": AnyStr(),
-                sortable_field.db_column: "Afonso",
-                private_field.db_column: AnyStr(),
+                sortable_field.name: "Afonso",
+                private_field.name: AnyStr(),
             },
         ],
         "has_next_page": False,
@@ -1211,8 +1241,8 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
             {
                 "id": 1,
                 "order": AnyStr(),
-                searchable_field.db_column: "Peter",
-                private_field.db_column: AnyStr(),
+                searchable_field.name: "Peter",
+                private_field.name: AnyStr(),
             }
         ],
         "has_next_page": False,
@@ -1347,7 +1377,7 @@ def test_dispatch_data_source_with_non_collection_element(api_client, data_fixtu
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "results": [{"id": row.id, "order": AnyStr(), field.db_column: "a"}],
+        "results": [{"id": row.id, "order": AnyStr(), field.name: "a"}],
         "has_next_page": False,
     }
 
@@ -1443,8 +1473,8 @@ def test_dispatch_data_source_using_formula(api_client, data_fixture):
     assert response.json() == {
         "id": 2,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
 
@@ -1647,20 +1677,20 @@ def test_dispatch_data_sources(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source.id): {
-            fields[1].db_column: "Orange",
-            fields[0].db_column: "Audi",
+            fields[1].name: "Orange",
+            fields[0].name: "Audi",
             "id": rows[1].id,
             "order": AnyStr(),
         },
         str(data_source1.id): {
-            fields[1].db_column: "Green",
-            fields[0].db_column: "2Cv",
+            fields[1].name: "Green",
+            fields[0].name: "2Cv",
             "id": rows[2].id,
             "order": AnyStr(),
         },
         str(data_source2.id): {
-            fields[1].db_column: "Dark",
-            fields[0].db_column: "Tesla",
+            fields[1].name: "Dark",
+            fields[0].name: "Tesla",
             "id": rows[3].id,
             "order": AnyStr(),
         },
@@ -1750,13 +1780,13 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_an_other(
         str(data_source2.id): {
             "id": 2,
             "order": "2.00000000000000000000",
-            fields2[0].db_column: "2",
+            fields2[0].name: "2",
         },
         str(data_source.id): {
             "id": 2,
             "order": "2.00000000000000000000",
-            fields[0].db_column: "Audi",
-            fields[1].db_column: "Orange",
+            fields[0].name: "Audi",
+            fields[1].name: "Orange",
         },
     }
 
@@ -1840,8 +1870,8 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
         str(data_source.id): {
             "id": rows[1].id,
             "order": "2.00000000000000000000",
-            fields[0].db_column: "Audi",
-            fields[1].db_column: "Orange",
+            fields[0].name: "Audi",
+            fields[1].name: "Orange",
         },
     }
 
@@ -1912,8 +1942,8 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
         str(shared_data_source.id): {
             "id": rows[1].id,
             "order": "2.00000000000000000000",
-            fields[0].db_column: "Audi",
-            fields[1].db_column: "Orange",
+            fields[0].name: "Audi",
+            fields[1].name: "Orange",
         },
     }
 
@@ -2002,7 +2032,8 @@ def test_dispatch_data_sources_list_rows_with_elements(
         table=data_source_fixture["table"],
     )
 
-    field_id = data_source_fixture["fields"][0].id
+    field = data_source_fixture["fields"][0]
+    field_id = field.id
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
@@ -2042,7 +2073,7 @@ def test_dispatch_data_sources_list_rows_with_elements(
             {
                 # Although this Data Source has 2 Fields/Columns, only one is
                 # returned since only one field_id is used by the Table.
-                f"field_{field_id}": getattr(row, f"field_{field_id}"),
+                field.name: getattr(row, f"field_{field_id}"),
                 "id": row.id,
             }
         )
@@ -2086,7 +2117,8 @@ def test_dispatch_data_sources_get_row_with_elements(
         row_id=table_row_id,
     )
 
-    field_id = data_source_fixture["fields"][0].id
+    field = data_source_fixture["fields"][0]
+    field_id = field.id
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
@@ -2125,7 +2157,7 @@ def test_dispatch_data_sources_get_row_with_elements(
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source.id): {
-            f"field_{field_id}": getattr(rows[db_row_id], f"field_{field_id}"),
+            field.name: getattr(rows[db_row_id], f"field_{field_id}"),
             "id": rows[db_row_id].id,
         }
     }
@@ -2231,7 +2263,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source_1.id): {
-            f"field_{fields_1[0].id}": getattr(rows_1[0], f"field_{fields_1[0].id}"),
+            fields_1[0].name: getattr(rows_1[0], f"field_{fields_1[0].id}"),
             "id": rows_1[0].id,
         },
         # Although this Data Source has 2 Fields/Columns, only one is returned
@@ -2240,9 +2272,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
             "has_next_page": False,
             "results": [
                 {
-                    f"field_{fields_2[0].id}": getattr(
-                        rows_2[0], f"field_{fields_2[0].id}"
-                    ),
+                    fields_2[0].name: getattr(rows_2[0], f"field_{fields_2[0].id}"),
                     "id": rows_2[0].id,
                 },
             ],
@@ -2351,17 +2381,17 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
         "has_next_page": False,
         "results": [
             {
-                f"field_{fields[0].id}": "Paneer Tikka",
+                fields[0].name: "Paneer Tikka",
                 # Although only field_1 is explicitly used by an element in this
                 # page, field_2 is still returned because the Editor page needs
                 # access to all data source fields.
-                f"field_{fields[1].id}": "5",
+                fields[1].name: "5",
                 "id": AnyInt(),
                 "order": AnyStr(),
             },
             {
-                f"field_{fields[0].id}": "Gobi Manchurian",
-                f"field_{fields[1].id}": "8",
+                fields[0].name: "Gobi Manchurian",
+                fields[1].name: "8",
                 "id": AnyInt(),
                 "order": AnyStr(),
             },

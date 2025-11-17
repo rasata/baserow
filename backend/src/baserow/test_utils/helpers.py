@@ -1,12 +1,13 @@
 import json
 import os
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import timedelta, timezone
 from decimal import Decimal
 from ipaddress import ip_network
 from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM
 from typing import Any, Dict, Generator, List, Optional, Type, Union
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -480,6 +481,32 @@ def setup_interesting_test_database(
 
 
 @contextmanager
+def defer_signals(dotted_names: List[str]):
+    """Temporarily no-op a list of callable paths during test setup.
+
+    Pass fully qualified dotted names of callables (e.g. Celery task .delay
+    methods or websocket broadcasters). While inside the context these
+    callables are patched to no-op to avoid a storm of side-effects while
+    bulk-creating data. After exiting, perform any needed one-shot processing
+    (e.g. initialize/process search data once per table).
+
+    Example:
+        with defer_signals([
+            "baserow.ws.tasks.broadcast_to_channel_group.delay",
+            "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+            "baserow.contrib.database.search.tasks.update_search_data.delay",
+        ]):
+            # create lots of data without triggering tasks/broadcasts
+            ...
+    """
+
+    with ExitStack() as stack:
+        for name in dotted_names:
+            stack.enter_context(patch(name, lambda *args, **kwargs: None))
+        yield
+
+
+@contextmanager
 def register_instance_temporarily(registry, instance):
     """
     A context manager to allow tests to register a new instance into a Baserow
@@ -597,6 +624,20 @@ class AnyInt(int):
         return isinstance(other, int)
 
 
+class AnyFloat(float):
+    """A class that can be used to check if a value is a float."""
+
+    def __eq__(self, other):
+        return isinstance(other, float)
+
+
+class AnyBool:
+    """A class that can be used to check if a value is a boolean."""
+
+    def __eq__(self, other):
+        return isinstance(other, bool)
+
+
 class AnyStr(str):
     """
     A class that can be used to check if a value is an str. Useful in tests when
@@ -615,6 +656,16 @@ class AnyDict(dict):
 
     def __eq__(self, other):
         return isinstance(other, dict)
+
+
+class AnyList(dict):
+    """
+    A class that can be used to check if a value is a list. Useful in tests when
+    you don't care about the contents.
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, list)
 
 
 def load_test_cases(name: str) -> Union[List, Dict]:

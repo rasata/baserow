@@ -1,7 +1,6 @@
+from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
-
-from .models import SMTPIntegration
 
 
 class SMTPIntegrationType(IntegrationType):

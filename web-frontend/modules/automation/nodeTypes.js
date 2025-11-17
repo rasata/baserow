@@ -3,6 +3,7 @@ import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
   UtilityNodeMixin,
+  containerNodeTypeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
@@ -15,14 +16,18 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
+  CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NodeType extends Registerable {
   /**
@@ -56,6 +61,13 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns the text to be displayed on the graph just before the node.
+   */
+  getBeforeLabel({ workflow, node }) {
+    return this.app.i18n.t('workflowNode.beforeLabelAction')
+  }
+
+  /**
    * The node type's description.
    * The description is derived from the service type's description.
    * @returns {string} - The node's description.
@@ -77,8 +89,9 @@ export class NodeType extends Registerable {
    * The icon which is shown inside the editor's node.
    * @returns {string} - The node's icon class.
    */
+
   get iconClass() {
-    return 'iconoir-table'
+    return this.serviceType.icon
   }
 
   /**
@@ -136,6 +149,19 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns the error message we should show when the node is in-error.
+   * By default, this is derived from the service type's `getErrorMessage`
+   * method, but can be overridden by the node type.
+   * @param {object} service - The service of the node.
+   * @param {object} node - The node for which the
+   *  error message is being retrieved.
+   * @returns {string} - The error message.
+   */
+  getErrorMessage({ service, node }) {
+    return this.serviceType.getErrorMessage({ service })
+  }
+
+  /**
    * Returns whether this individual node is allowed to be deleted.
    * By default, all nodes (except triggers) are allowed to be deleted.
    * This can be overridden by the node type to prevent deletion.
@@ -145,6 +171,13 @@ export class NodeType extends Registerable {
    */
   isDeletable({ workflow, node }) {
     return Boolean(this.getDeleteErrorMessage({ workflow, node }))
+  }
+
+  /**
+   * Returns whether the given node can be duplicated.
+   */
+  isDuplicable({ workflow, node }) {
+    return true
   }
 
   /**
@@ -207,13 +240,21 @@ export class NodeType extends Registerable {
     const serviceSchema = this.serviceType.getDataSchema(node.service)
     if (serviceSchema) {
       return {
-        type: this.dataType,
+        ...serviceSchema,
         title: this.getLabel({ automation, node }),
-        properties: serviceSchema.properties || {},
-        items: serviceSchema.items || [],
       }
     }
     return null
+  }
+
+  /**
+   * Returns the sample data for this node.
+   */
+  getSampleData({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleData(service)
   }
 
   getEdges({ node }) {
@@ -277,7 +318,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_created'
+    return 'local_baserow_rows_created'
   }
 
   getOrder() {
@@ -300,7 +341,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_updated'
+    return 'local_baserow_rows_updated'
   }
 
   getOrder() {
@@ -323,7 +364,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_deleted'
+    return 'local_baserow_rows_deleted'
   }
 
   getOrder() {
@@ -353,10 +394,6 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     return 4
   }
 
-  get iconClass() {
-    return 'iconoir-timer'
-  }
-
   get name() {
     return this.app.i18n.t('nodeType.periodicTriggerLabel')
   }
@@ -371,7 +408,9 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     }
 
     const intervalLabels = {
-      MINUTE: this.app.i18n.t('periodicForm.everyMinute'),
+      MINUTE: this.app.i18n.t('periodicForm.everyMinute', {
+        minute: node.service.minute,
+      }),
       HOUR: this.app.i18n.t('periodicForm.everyHour'),
       DAY: this.app.i18n.t('periodicForm.everyDay'),
       WEEK: this.app.i18n.t('periodicForm.everyWeek'),
@@ -395,10 +434,6 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
     return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
   }
 
-  get iconClass() {
-    return 'iconoir-globe'
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -419,7 +454,7 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'create_row'
+    return 'local_baserow_create_row'
   }
 
   getOrder() {
@@ -442,7 +477,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'update_row'
+    return 'local_baserow_update_row'
   }
 
   getOrder() {
@@ -465,7 +500,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'delete_row'
+    return 'local_baserow_delete_row'
   }
 
   getOrder() {
@@ -488,7 +523,7 @@ export class LocalBaserowGetRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'get_row'
+    return 'local_baserow_get_row'
   }
 
   getOrder() {
@@ -511,7 +546,7 @@ export class LocalBaserowListRowsActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'list_rows'
+    return 'local_baserow_list_rows'
   }
 
   getOrder() {
@@ -538,7 +573,7 @@ export class LocalBaserowAggregateRowsActionNodeType extends ActionNodeTypeMixin
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'aggregate_rows'
+    return 'local_baserow_aggregate_rows'
   }
 
   getOrder() {
@@ -566,10 +601,6 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
     return 7
   }
 
-  get iconClass() {
-    return 'iconoir-globe'
-  }
-
   get name() {
     return this.app.i18n.t('nodeType.httpRequestLabel')
   }
@@ -582,6 +613,78 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreIteratorNodeType extends containerNodeTypeMixin(
+  ActionNodeTypeMixin(UtilityNodeMixin(NodeType))
+) {
+  static getType() {
+    return 'iterator'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.iterationLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreIteratorServiceType.getType())
+  }
+
+  /**
+   * Responsible for checking if the router node can be deleted. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the deletability is being checked.
+   * @returns {string} - An error message if the router cannot be deleted.
+   */
+  getDeleteErrorMessage({ workflow, node }) {
+    const children = this.app.store.getters[
+      'automationWorkflowNode/getChildren'
+    ](workflow, node)
+    const count = children.length
+    if (count) {
+      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesDeleteError', {
+        count,
+      })
+    }
+    return ''
+  }
+
+  getBeforeLabel({ workflow, node, position, output }) {
+    if (position === 'child') {
+      return this.app.i18n.t('workflowNode.beforeLabelRepeat')
+    }
+
+    return super.getBeforeLabel({ workflow, node, position, output })
+  }
+
+  /**
+   * Responsible for checking if the router node can be replaced. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the replaceability is being checked.
+   * @returns {string} - An error message if the router cannot be replaced.
+   */
+  getReplaceErrorMessage({ workflow, node }) {
+    const children = this.app.store.getters[
+      'automationWorkflowNode/getChildren'
+    ](workflow, node)
+    const count = children.length
+    if (count) {
+      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesReplaceError', {
+        count,
+      })
+    }
+    return ''
+  }
+
+  isDuplicable({ workflow, node }) {
+    return false
+  }
+}
+
 export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'smtp_email'
@@ -589,10 +692,6 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 8
-  }
-
-  get iconClass() {
-    return 'iconoir-send-mail'
   }
 
   get name() {
@@ -621,6 +720,13 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
     return true
   }
 
+  getBeforeLabel({ workflow, node, position, output }) {
+    if (output.length > 0) {
+      return this.app.i18n.t('workflowNode.beforeLabelCondition')
+    }
+    return this.app.i18n.t('workflowNode.beforeLabelConditionDefault')
+  }
+
   getOrder() {
     return 9
   }
@@ -632,10 +738,6 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           edgeCount: this.getEdges({ node }).length,
         })
       : this.name
-  }
-
-  get iconClass() {
-    return 'iconoir-git-fork'
   }
 
   get serviceType() {
@@ -706,13 +808,9 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    * @returns {Array} - An array of output nodes that are connected to the router's edges.
    */
   getOutputNodes({ workflow, router }) {
-    const edgeUids = this.getEdges({ node: router }).map((edge) => edge.uid)
-    return this.app.store.getters['automationWorkflowNode/getNodes'](
-      workflow
-    ).filter(
-      (node) =>
-        node.previous_node_id === router.id &&
-        edgeUids.includes(node.previous_node_output)
+    return this.app.store.getters['automationWorkflowNode/getNextNodes'](
+      workflow,
+      router
     )
   }
 
@@ -734,5 +832,69 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
       },
     ]
+  }
+
+  isDuplicable({ workflow, node }) {
+    return false
+  }
+}
+
+export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'ai_agent'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.aiAgent')
+  }
+
+  get iconClass() {
+    return 'iconoir-sparks'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', AIAgentServiceType.getType())
+  }
+
+  getOrder() {
+    return 8
+  }
+}
+
+export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get iconClass() {
+    return ''
+  }
+
+  get image() {
+    return slackIntegration
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.slackWriteMessageName')
+  }
+
+  getDefaultLabel({ node }) {
+    if (!node.service) return this.name
+    return node.service.channel.length
+      ? this.app.i18n.t('nodeType.slackWriteMessageLabel', {
+          channel: node.service.channel,
+        })
+      : this.name
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      SlackWriteMessageServiceType.getType()
+    )
   }
 }

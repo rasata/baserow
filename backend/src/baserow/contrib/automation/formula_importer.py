@@ -1,9 +1,10 @@
-from typing import Dict
+from typing import Dict, Union
 
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
-from baserow.core.formula import get_parse_tree_for_formula
+from baserow.core.formula import BaserowFormulaObject, get_parse_tree_for_formula
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.services.formula_importer import BaserowFormulaImporter
 
 
@@ -18,7 +19,9 @@ class AutomationFormulaImporter(BaserowFormulaImporter):
         return automation_data_provider_type_registry
 
 
-def import_formula(formula: str, id_mapping: Dict[str, str], **kwargs) -> str:
+def import_formula(
+    formula: Union[str, BaserowFormulaObject], id_mapping: Dict[str, str], **kwargs
+) -> BaserowFormulaObject:
     """
     When a formula is used in an automation, it must be migrated when we import it
     because it could contain IDs referencing other objects.
@@ -30,8 +33,17 @@ def import_formula(formula: str, id_mapping: Dict[str, str], **kwargs) -> str:
     :return: The updated path.
     """
 
-    if not formula:
+    formula = BaserowFormulaObject.to_formula(formula)
+
+    if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
         return formula
 
-    tree = get_parse_tree_for_formula(formula)
-    return AutomationFormulaImporter(id_mapping, **kwargs).visit(tree)
+    tree = get_parse_tree_for_formula(formula["formula"])
+    new_formula = AutomationFormulaImporter(id_mapping, **kwargs).visit(tree)
+
+    if new_formula != formula["formula"]:
+        # We create a new instance to show it's a different formula
+        formula = dict(formula)
+        formula["formula"] = new_formula
+
+    return formula

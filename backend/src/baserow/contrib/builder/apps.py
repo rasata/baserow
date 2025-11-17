@@ -277,6 +277,7 @@ class BuilderConfig(AppConfig):
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
+            AIAgentWorkflowActionType,
             CoreHttpRequestActionType,
             CoreSMTPEmailActionType,
             CreateRowWorkflowActionType,
@@ -285,6 +286,7 @@ class BuilderConfig(AppConfig):
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
             RefreshDataSourceWorkflowActionType,
+            SlackWriteMessageWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
@@ -299,6 +301,10 @@ class BuilderConfig(AppConfig):
         )
         builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
         builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
+        builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
+        builder_workflow_action_type_registry.register(
+            SlackWriteMessageWorkflowActionType()
+        )
 
         from .elements.collection_field_types import (
             BooleanCollectionFieldType,
@@ -337,3 +343,8 @@ class BuilderConfig(AppConfig):
         # which need to be filled first.
         import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import BuilderSearchType
+
+        workspace_search_registry.register(BuilderSearchType())

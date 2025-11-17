@@ -1,29 +1,39 @@
-import json
 import uuid
 from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_204_NO_CONTENT
+from rest_framework.status import (
+    HTTP_202_ACCEPTED,
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+)
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
-from baserow.core.utils import MirrorDict
+from tests.baserow.contrib.automation.api.utils import get_api_kwargs
+
+API_URL_BASE = "api:automation:nodes"
+API_URL_MOVE = f"{API_URL_BASE}:move"
 
 
 def test_automation_node_type_is_replaceable_with():
-    trigger_node_type = automation_node_type_registry.get("rows_created")
-    update_trigger_node_type = automation_node_type_registry.get("rows_updated")
-    action_node_type = automation_node_type_registry.get("create_row")
-    update_action_node_type = automation_node_type_registry.get("update_row")
+    trigger_node_type = automation_node_type_registry.get("local_baserow_rows_created")
+    update_trigger_node_type = automation_node_type_registry.get(
+        "local_baserow_rows_updated"
+    )
+    action_node_type = automation_node_type_registry.get("local_baserow_create_row")
+    update_action_node_type = automation_node_type_registry.get(
+        "local_baserow_update_row"
+    )
 
     assert trigger_node_type.is_replaceable_with(update_trigger_node_type)
     assert not trigger_node_type.is_replaceable_with(update_action_node_type)
@@ -72,7 +82,9 @@ def test_automation_service_node_trigger_type_on_event(
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -82,9 +94,11 @@ def test_automation_node_type_create_row_prepare_values_with_instance(data_fixtu
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_without_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
-    values = {"service": {}}
+    values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -100,7 +114,9 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
@@ -110,9 +126,14 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
 
 
 @pytest.mark.django_db
-def test_automation_node_type_rows_created_prepare_values_with_instance(data_fixture):
+def test_automation_node_type_local_baserow_rows_created_prepare_values_with_instance(
+    data_fixture,
+):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="rows_created")
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_rows_created"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -120,11 +141,16 @@ def test_automation_node_type_rows_created_prepare_values_with_instance(data_fix
 
 
 @pytest.mark.django_db
-def test_service_node_type_rows_created_prepare_values_without_instance(data_fixture):
+def test_service_node_type_local_baserow_rows_created_prepare_values_without_instance(
+    data_fixture,
+):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="rows_created")
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_rows_created"
+    )
 
-    values = {"service": {}}
+    values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -136,25 +162,13 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
 @pytest.mark.django_db
 def test_automation_node_type_update_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_update_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
     assert result == {"service": node.service}
-
-
-@pytest.mark.django_db
-def test_automation_node_type_update_row_prepare_values_without_instance(data_fixture):
-    user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
-
-    values = {"service": {}}
-    result = node.get_type().prepare_values(values, user)
-
-    # Since we didn't pass in a service, a new service is created
-    new_service = result["service"]
-    assert isinstance(new_service, type(node.service))
-    assert new_service.id != node.service.id
 
 
 @patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
@@ -164,7 +178,9 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_update_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
@@ -176,7 +192,10 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 @pytest.mark.django_db
 def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="delete_row")
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_delete_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -186,9 +205,19 @@ def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixtu
 @pytest.mark.django_db
 def test_automation_node_type_delete_row_prepare_values_without_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="delete_row")
+    workflow = data_fixture.create_automation_workflow(user=user)
 
-    values = {"service": {}}
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_delete_row"
+    )
+    another_node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_delete_row"
+    )
+
+    values = {
+        "service": {},
+        "workflow": node.workflow,
+    }
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -205,46 +234,15 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="delete_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_delete_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
     mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
-
-
-@pytest.mark.django_db
-def test_automation_node_migrates_its_previous_node_output_on_import(
-    data_fixture,
-):
-    user = data_fixture.create_user()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    service = data_fixture.create_core_router_service(default_edge_label="Default")
-    data_fixture.create_core_router_action_node(workflow=workflow, service=service)
-    edge = data_fixture.create_core_router_service_edge(
-        service=service, label="Do this", condition="'true'"
-    )
-    output_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node_output=str(edge.uid)
-    )
-    output_node_type = output_node.get_type()
-
-    serialized = json.loads(json.dumps(output_node_type.export_serialized(output_node)))
-    assert serialized["previous_node_output"] == str(edge.uid)
-
-    id_mapping = {
-        "integrations": MirrorDict(),
-        "automation_workflow_nodes": MirrorDict(),
-        "automation_edge_outputs": {str(edge.uid): str(uuid.uuid4())},
-    }
-    new_output_node = output_node_type.import_serialized(
-        workflow, serialized, id_mapping, import_formula=lambda x, d: x
-    )
-    assert (
-        new_output_node.previous_node_output
-        == id_mapping["automation_edge_outputs"][str(edge.uid)]
-    )
 
 
 @pytest.mark.django_db
@@ -259,23 +257,21 @@ def test_on_event_excludes_disabled_workflows(mock_async_start_workflow, data_fi
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
-    )
 
     # Create a Node + workflow that is disabled
     original_workflow = data_fixture.create_automation_workflow()
     workflow = data_fixture.create_automation_workflow(
-        state=WorkflowState.DISABLED,
+        state=WorkflowState.DISABLED, trigger_service_kwargs={"table": table}
     )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
 
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, service=service
+    trigger = workflow.get_trigger()
+
+    service_queryset = trigger.service.get_type().model_class.objects.filter(
+        table=table
     )
 
-    service_queryset = service.get_type().model_class.objects.filter(table=table)
     event_payload = [
         {
             "id": 1,
@@ -289,14 +285,46 @@ def test_on_event_excludes_disabled_workflows(mock_async_start_workflow, data_fi
         },
     ]
 
-    node.get_type().on_event(service_queryset, event_payload, user=user)
+    trigger.get_type().on_event(service_queryset, event_payload, user=user)
+
     mock_async_start_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type.type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.is_workflow_trigger
+    ],
+)
+def test_trigger_cant_be_moved(node_type, api_client, data_fixture):
+    node_type = automation_node_type_registry.get(node_type)
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, trigger_type=node_type)
+    trigger = workflow.get_trigger()
+    node_after = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": trigger.id}),
+        {"reference_node_id": node_after.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "Trigger nodes cannot be moved.",
+    }
 
 
 @pytest.mark.django_db
 def test_duplicating_router_node(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
+
     core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
         workflow=workflow,
     )
@@ -305,44 +333,119 @@ def test_duplicating_router_node(data_fixture):
     edge2_output = core_router_with_edges.edge2_output
     fallback_output_node = core_router_with_edges.fallback_output_node
 
-    router_type = router.get_type()
-    source_router_outputs = router_type.get_output_nodes(router, specific=True)
-    assert len(source_router_outputs) == 3
-    assert edge1_output in source_router_outputs
-    assert edge2_output in source_router_outputs
-    assert fallback_output_node in source_router_outputs
+    workflow.assert_reference(
+        {
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["fallback node"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    duplication = AutomationNodeHandler().duplicate_node(router)
-    duplicated_router = duplication.duplicated_node
+    AutomationNodeService().duplicate_node(user, router.id)
 
-    assert duplicated_router.previous_node_id == router.id
-    assert duplicated_router.previous_node_output == ""
+    workflow.assert_reference(
+        {
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["router-"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "router-": {"next": {"Default": ["fallback node"]}},
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    source_router_outputs = router_type.get_output_nodes(router, specific=True)
-    assert len(source_router_outputs) == 3
-    assert edge1_output in source_router_outputs
-    assert edge2_output in source_router_outputs
-    assert duplicated_router in source_router_outputs
 
-    fallback_output_node.refresh_from_db()
-    assert fallback_output_node not in source_router_outputs
-    assert fallback_output_node.previous_node_id == duplicated_router.id
+@pytest.mark.django_db
+def test_moving_router_node_allowed_with_next_on_default_edge(api_client, data_fixture):
+    node_type = automation_node_type_registry.get("router")
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    after_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        label="after",
+        reference_node=node,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+
+@pytest.mark.django_db
+def test_moving_router_node_not_allowed_with_next_on_edge(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow,
+    )
+    edge1 = data_fixture.create_core_router_service_edge(
+        service=router.service,
+        label="Do this",
+        condition="'true'",
+        output_label="output edge 1",
+    )
+    after_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="after", reference_node=router, output=edge1.uid
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": router.id}),
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "Router nodes cannot be moved if they "
+        "have one or more output nodes associated with them.",
+    }
 
 
 @pytest.mark.django_db
 def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
+    workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, trigger_service_kwargs={"table": table}
     )
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, service=service
-    )
+
+    trigger = workflow.get_trigger().specific
+
     dispatch_context = AutomationDispatchContext(workflow, "foo")
 
-    result = node.get_type().dispatch(node, dispatch_context)
+    result = trigger.get_type().dispatch(trigger, dispatch_context)
 
     assert result == DispatchResult(data="foo", status=200, output_uid="")
 
@@ -351,19 +454,22 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
-    node = workflow.get_trigger().specific
-    service = node.service.specific
-    service.table = table
-    service.sample_data = {"data": {"foo": "bar"}}
-    service.save()
+    workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE,
+        trigger_service_kwargs={
+            "table": table,
+            "sample_data": {"data": {"foo": "bar"}},
+        },
+    )
 
-    dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=node)
+    trigger = workflow.get_trigger()
+
+    dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=trigger)
     # If we don't reset this value, the trigger is considered as updatable and will
     # be dispatched.
     dispatch_context.update_sample_data_for = []
 
-    result = node.get_type().dispatch(node, dispatch_context)
+    result = trigger.get_type().dispatch(workflow.get_trigger(), dispatch_context)
 
     assert result == DispatchResult(data={"foo": "bar"}, status=200, output_uid="")
 

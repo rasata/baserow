@@ -276,7 +276,8 @@
         "dbIndex": "Index",
         "dbIndexError": "Ce type de champ ne peut pas avoir d'index. Veuillez le supprimer avant d'enregistrer ou de modifier le type de champ.",
         "dbIndexDescription": "L'indexation peut améliorer considérablement les performances de filtrage, mais ralentit les opérations de création, de mise à jour et de suppression.",
-        "defaultValueDisabledByConstraint": "Impossible de définir une valeur par défaut avec une contrainte d'unicité"
+        "defaultValueDisabledByConstraint": "Impossible de définir une valeur par défaut avec une contrainte d'unicité",
+        "dbIndexDisabledTooltip": "L'indexation n'est pas disponible pour ce type de champ."
     },
     "fieldLookupSubForm": {
         "noTable": "Vous devez créer au moins une autre table dans la même base de données pour pouvoir créer un lien.",
@@ -560,7 +561,8 @@
         "generateCellsValues": "Générer des valeurs avec l'IA",
         "AIValuesGenerationErrorTitle": "La génération de valeur par l'IA a échoué",
         "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné.",
-        "copyCellsWithHeader": "Copier les cellules avec l'en-tête"
+        "copyCellsWithHeader": "Copier les cellules avec l'en-tête",
+        "generateAllAiValues": "Générer toutes les valeurs"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}",
@@ -873,7 +875,7 @@
         "selectTargetFieldLabel": "Sélectionner un champ à cumuler"
     },
     "fieldSelectThroughFieldSubForm": {
-        "noTable": "Vous avez besoin d’au moins un champ te type « lien vers une table » pour créer ce champ.",
+        "noTable": "Vous avez besoin d’au moins un champ de type « lien vers une table » pour créer ce champ.",
         "selectThroughFieldLabel": "Sélectionner un champ « lien vers une table »"
     },
     "apiDocsFiltersBuilderModal": {
@@ -907,7 +909,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} vous a assigné à {fieldName} dans la ligne {rowId} de la table {tableName}",
-        "deletedUser": "Un utilisateur supprimé"
+        "deletedUser": "Un utilisateur supprimé",
+        "unknownUser": "Un utilisateur inconnu"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Notifier l'utilisateur lorsqu'il est ajouté"

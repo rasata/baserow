@@ -1,22 +1,17 @@
 <template>
   <div class="assistant__input">
-    <div class="assistant__input-status" :class="{ 'is-running': running }">
+    <div class="assistant__input-status" :class="{ 'is-running': isRunning }">
       <i class="iconoir-sparks assistant__input-status-icon"></i>
-      <span v-if="!running" class="assistant__status-waiting">
+      <span v-if="!isRunning" class="assistant__status-message">
         {{ $t('assistantInputMessage.statusWaiting') }}
       </span>
-      <span v-else class="assistant__status-running">
-        {{ $t('assistantInputMessage.statusRunning') }}
+      <span v-else class="assistant__status-message">
+        {{ runningMessage || $t('assistant.statusThinking') }}
       </span>
     </div>
-    <div class="assistant__input-section" :class="{ 'is-running': running }">
-      <div
-        class="assistant__input-wrapper"
-        :class="{ 'has-context': contextDisplay }"
-      >
-        <div v-if="contextDisplay" class="assistant__context-badge">
-          <span class="assistant__context-text">{{ contextDisplay }}</span>
-        </div>
+    <div class="assistant__input-section" :class="{ 'is-running': isRunning }">
+      <div class="assistant__input-wrapper has-context">
+        <AssistantUiContext :ui-context="uiContext" />
 
         <textarea
           ref="textarea"
@@ -32,15 +27,20 @@
           class="assistant__send-button"
           :class="{
             'assistant__send-button--disabled':
-              !currentMessage.trim() || running,
-            'assistant__send-button--is-running': running,
+              (!currentMessage.trim() && !isRunning) || isCancelling,
+            'assistant__send-button--is-running': isRunning,
+            'assistant__send-button--is-cancelling': isCancelling,
           }"
-          :disabled="!currentMessage.trim() || running"
-          :title="$t('assistantInputMessage.send')"
-          @click="sendMessage"
+          :disabled="(!currentMessage.trim() && !isRunning) || isCancelling"
+          :title="
+            isRunning
+              ? $t('assistantInputMessage.stop')
+              : $t('assistantInputMessage.send')
+          "
+          @click="handleButtonClick"
         >
-          <i v-if="!running" class="iconoir-arrow-up"></i>
-          <i v-else class="iconoir-system-restart"></i>
+          <i v-if="!isRunning" class="iconoir-arrow-up"></i>
+          <i v-else class="iconoir-square assistant__send-button-icon-stop"></i>
         </button>
       </div>
     </div>
@@ -48,16 +48,29 @@
 </template>
 
 <script>
+import AssistantUiContext from '@baserow_enterprise/components/assistant/AssistantUiContext'
+
 export default {
   name: 'AssistantInputMessage',
+  components: {
+    AssistantUiContext,
+  },
   props: {
-    contextDisplay: {
-      type: String,
-      default: '',
+    uiContext: {
+      type: Object,
+      default: () => ({}),
     },
-    running: {
+    isRunning: {
       type: Boolean,
       default: false,
+    },
+    isCancelling: {
+      type: Boolean,
+      default: false,
+    },
+    runningMessage: {
+      type: String,
+      default: '',
     },
   },
   data() {
@@ -72,20 +85,42 @@ export default {
     this.adjustHeight()
   },
   methods: {
+    setCurrentMessage(message) {
+      this.currentMessage = message
+
+      this.$nextTick(() => {
+        this.calculateLineHeight()
+        this.adjustHeight()
+        this.$refs.textarea.focus()
+      })
+    },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)
       if (!event.shiftKey) {
         event.preventDefault()
+        if (!this.isRunning) {
+          this.sendMessage()
+        }
+      }
+    },
+    handleButtonClick() {
+      if (this.isRunning) {
+        this.cancelMessage()
+      } else {
         this.sendMessage()
       }
     },
     sendMessage() {
       const message = this.currentMessage.trim()
-      if (!message || this.running) return
+      if (!message || this.isRunning) return
 
       this.$emit('send-message', message)
 
       this.clear()
+    },
+    cancelMessage() {
+      if (!this.isRunning || this.isCancelling) return
+      this.$emit('cancel-message')
     },
     calculateLineHeight() {
       const textarea = this.$refs.textarea

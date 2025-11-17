@@ -6,9 +6,11 @@ from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedE
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import Q
+from django.db.models import DurationField, ExpressionWrapper, F, Q, Value
+from django.db.models.functions import Coalesce, NullIf
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -21,6 +23,9 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
@@ -40,6 +45,7 @@ from baserow.contrib.integrations.core.integration_types import SMTPIntegrationT
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreIteratorService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
@@ -48,6 +54,8 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
+from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -65,6 +73,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
     DispatchTypes,
+    ListServiceTypeMixin,
     ServiceType,
     TriggerServiceTypeMixin,
 )
@@ -151,8 +160,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             "url": FormulaSerializerField(
                 help_text=CoreHTTPRequestService._meta.get_field("url").help_text,
                 default="",
-                allow_blank=True,
-                required=False,
             ),
             "body_type": serializers.ChoiceField(
                 choices=BODY_TYPE.choices,
@@ -165,8 +172,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     "body_content"
                 ).help_text,
                 default="",
-                allow_blank=True,
-                required=False,
             ),
             "headers": HTTPHeaderSerializer(
                 many=True,
@@ -263,21 +268,21 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         # Return form_data formulas
         for fdata in service.form_data.all():
-            new_formula = yield fdata.value
+            new_formula = yield BaserowFormulaObject.to_formula(fdata.value)
             if new_formula is not None:
                 fdata.value = new_formula
                 yield fdata
 
         # Return headers formulas
         for header in service.headers.all():
-            new_formula = yield header.value
+            new_formula = yield BaserowFormulaObject.to_formula(header.value)
             if new_formula is not None:
                 header.value = new_formula
                 yield header
 
         # Return headers formulas
         for query_param in service.query_params.all():
-            new_formula = yield query_param.value
+            new_formula = yield BaserowFormulaObject.to_formula(query_param.value)
             if new_formula is not None:
                 query_param.value = new_formula
                 yield query_param
@@ -531,24 +536,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         return formulas
 
-    def _get_request_function(self) -> callable:
-        """
-        Return the appropriate request function based on production environment
-        or settings.
-        In production mode, the advocate library is used so that the internal
-        network can't be reached. This can be disabled by changing the Django
-        setting INTEGRATIONS_ALLOW_PRIVATE_ADDRESS.
-        """
-
-        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
-            from requests import request
-
-            return request
-        else:
-            from advocate import request
-
-            return request
-
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -585,7 +572,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         }
 
         try:
-            response = self._get_request_function()(
+            response = get_http_request_function()(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
@@ -694,39 +681,21 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "from_email": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "from_name": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_name").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "to_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("to_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "cc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("cc_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "bcc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("bcc_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "subject": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("subject").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "body_type": serializers.ChoiceField(
                 choices=[
@@ -739,9 +708,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "body": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("body").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
         }
 
@@ -933,9 +899,7 @@ class CoreRouterServiceType(CoreServiceType):
         Responsible for importing the router service and its edges.
 
         For each edge that we find, generate a new unique ID and store it in the
-        `id_mapping` dictionary under the key "automation_edge_outputs". Any nodes
-        with a `previous_node_output` that matches the edge's UID will be updated to
-        use the new unique ID in their own deserialization.
+        `id_mapping` dictionary under the key "automation_edge_outputs".
         """
 
         for edge in serialized_values["edges"]:
@@ -1184,6 +1148,11 @@ class CoreRouterServiceType(CoreServiceType):
 
         return super().get_sample_data(service, dispatch_context)
 
+    def get_edges(self, service):
+        return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
+            "": {"label": service.default_edge_label}
+        }
+
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
@@ -1251,6 +1220,33 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         day_of_week: int
         day_of_month: int
 
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CorePeriodicService] = None,
+    ) -> Dict[str, Any]:
+        """
+        Responsible for preparing and validating the periodic service values.
+        If the `interval` is set to `MINUTE`, it ensures that the `minute` value
+        is greater than or equal to the minimum allowed value defined in the settings.
+
+        :param values: The values to prepare.
+        :param user: The user creating or updating the service.
+        :param instance: The existing service instance, if updating.
+        :return: The prepared values.
+        """
+
+        minute = values.get("minute", None)
+        if values.get("interval") == PERIODIC_INTERVAL_MINUTE and minute is not None:
+            if minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN:
+                raise AutomationNodeMisconfiguredService(
+                    "The `minute` value must be greater "
+                    f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
+                )
+
+        return super().prepare_values(values, user, instance)
+
     def can_immediately_be_tested(self, service):
         return True
 
@@ -1316,13 +1312,33 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param now: The current datetime.
         """
 
+        # Truncate to minute precision for consistent interval calculations
+        # Note: we replace the seconds and microseconds due to jitter that
+        # can exist between when the Celery task is scheduled, and when the
+        # services were actually processed. For example:
+        #
+        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
+        # - Celery runs at 12:00:00.500 (half a second delay)
+        # - Service is triggered, last_periodic_run = 12:00:00.500
+        # Next checks:
+        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
+        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
+        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
+        now = now.replace(second=0, microsecond=0)
+
         query_conditions = Q()
         is_null = Q(last_periodic_run__isnull=True)
 
         # MINUTE
-        minute_ago = now - timedelta(minutes=1)
         minute_condition = Q(
-            is_null | Q(last_periodic_run__lt=minute_ago),
+            is_null
+            | Q(
+                last_periodic_run__lte=now
+                - ExpressionWrapper(
+                    Coalesce(NullIf(F("minute"), 0), Value(1)) * timedelta(minutes=1),
+                    output_field=DurationField(),
+                )
+            ),
             interval=PERIODIC_INTERVAL_MINUTE,
         )
         query_conditions |= minute_condition
@@ -1427,6 +1443,31 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             ),
         ]
 
+    def serialize_property(
+        self,
+        service: CoreHTTPTriggerService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the trigger's properties.
+
+        :param service: The CoreHTTPTriggerService service.
+        :param prop_name: The property name we're serializing.
+        :param files_zip: The zip file containing the files.
+        :param storage: The storage to use for the files.
+        :param cache: The cache to use for the files.
+        """
+
+        if prop_name == "uid":
+            return str(service.uid)
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
     ) -> None:
@@ -1446,6 +1487,10 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             method isn't allowed for this service.
         """
 
+        # When the service is published, the previous published service may
+        # be kept (e.g. see `AutomationWorkflowHandler::publish()`). Since the
+        # uid is the same between the two, a filter is necessary to fetch only
+        # the latest published service.
         service = (
             self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
             .order_by("-id")
@@ -1581,3 +1626,89 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         values["uid"] = str(values["uid"])
 
         return values
+
+
+class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
+    type = "iterator"
+    model_class = CoreIteratorService
+    dispatch_types = DispatchTypes.ACTION
+
+    allowed_fields = [
+        "source",
+    ]
+
+    serializer_field_names = [
+        "source",
+    ]
+
+    class SerializedDict(ServiceDict):
+        source: str
+
+    simple_formula_fields = [
+        "source",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "source": FormulaSerializerField(
+                help_text=CoreIteratorService._meta.get_field("source").help_text,
+                required=False,
+            ),
+        }
+
+    def get_schema_name(self, service: CoreSMTPEmailService) -> str:
+        return f"Iterator{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreIteratorService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if service.sample_data and (
+            allowed_fields is None or "items" in allowed_fields
+        ):
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["data"]["results"])
+            schema = schema_builder.to_schema()
+
+            # Sometimes there is no items if the array is empty
+            if "items" in schema:
+                return {
+                    **schema,
+                    "title": self.get_schema_name(service),
+                }
+            else:
+                return None
+        else:
+            return None
+
+    def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
+
+        return [
+            FormulaToResolve(
+                "source",
+                service.source,
+                ensure_array,
+                "'source' property",
+            )
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreSMTPEmailService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        return {"results": resolved_values["source"], "has_next_page": False}
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data)

@@ -1,4 +1,32 @@
 {
+  "automationWelcomeGuidedTourStep": {
+    "title": "Welcome to Baserow Automations!",
+    "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
+  },
+  "automationGraphGuidedTourStep": {
+    "title": "Manage your workflow graph here",
+    "content": "Create a trigger and actions here to define what the workflow should do. Select a trigger or action to configure it in the side panel."
+  },
+  "automationTestRunGuidedTourStep": {
+    "title": "Test your workflow",
+    "content": "When you're ready, start a test run to see your workflow in action. The trigger will run once to simulate a full execution."
+  },
+  "automationHistoryGuidedTourStep": {
+    "title": "View workflow history",
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
+  },
+  "automationPublishGuidedTourStep": {
+    "title": "Publish your workflow",
+    "content": "Once you've tested and refined your setup, publish your workflow to make it live. Its trigger will now run automatically on schedule."
+  },
+  "automationWorkflowStateGuidedTourStep": {
+    "title": "Control workflow state",
+    "content": "From here, you can pause or resume your workflow at any time. You're always in control of whether it's active or disabled."
+  },
+  "automationDocsGuidedTourStep": {
+    "title": "Explore the documentation",
+    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
+  },
   "sidebarComponentAutomation": {
     "createAutomationWorkflow": "New workflow"
   },
@@ -43,6 +71,7 @@
     "publishBtn": "Publish",
     "settingsBtn": "Settings",
     "historyBtn": "History",
+    "docsBtn": "Docs",
     "switchLabelDraft": "Draft",
     "switchLabelDisabled": "Disabled",
     "switchLabelPaused": "Paused",
@@ -50,6 +79,8 @@
     "lastPublished": "Last published"
   },
   "dataProviderType": {
+    "currentIteration": "Current iteration",
+    "item": "Item",
     "previousNode": "Previous node"
   },
   "nodeSidePanel": {
@@ -80,10 +111,16 @@
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
+    "iterationLabel": "Iterate on items",
     "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
-    "periodicTriggerLabel": "Periodic trigger"
+    "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",
+    "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
+    "periodicTriggerLabel": "Periodic trigger",
+    "aiAgent": "AI prompt",
+    "slackWriteMessageName": "Send a Slack message",
+    "slackWriteMessageLabel": "Send a message to #{channel}"
   },
   "workflowNode": {
     "actionDelete": "Delete",
@@ -94,14 +131,15 @@
     "beforeLabelAction": "Then",
     "beforeLabelCondition": "If condition is met",
     "beforeLabelConditionDefault": "If no condition(s) are met",
+    "beforeLabelRepeat": "For each item",
     "moreEdit": "Edit",
     "moreReplace": "Replace",
     "nodeOptions": "Node options",
-    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}"
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "Duplicate"
   },
   "workflowAddNode": {
-    "displayTitle": "Create automation node",
-    "displayTitleDebug": "ID: {id} | {outputUid}"
+    "displayTitle": "Create automation node"
   },
   "workflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",
@@ -139,19 +177,24 @@
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
   },
+  "workflowEditor": {
+    "chooseEvent": "Choose an event..."
+  },
   "simulateDispatch": {
     "sampleDataLabel": "Output",
-    "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
-    "errorNodeNotConfigured": "The Node must be configured before it can be tested.",
-    "errorPreviousNodeNotConfigured": "All previous nodes must be configured.",
-    "errorPreviousNodesNotTested": "All previous nodes must be tested.",
-    "buttonLabelShowPayload": "Show payload",
+    "triggerNodeAwaitingEvent": "The node is waiting. Please manually trigger the event to populate the payload and complete the test.",
+    "errorNodeNotConfigured": "The node must be configured before it can be tested.",
+    "errorPreviousNodeNotConfigured": "The previous node \"{node}\" must be configured.",
+    "errorPreviousNodesNotTested": "The previous node \"{node}\" must be tested first.",
     "buttonLabelTest": "Test event",
     "buttonLabelTestAgain": "Test event again",
     "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
+    "buttonLabelShowPayload": "Show payload",
+    "buttonLabelShowError": "Show error",
     "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload",
     "sampleDataCopy": "Copy",
+    "errorOccurred": "An error occurred...",
     "sampleDataCopied": "Payload copied to clipboard"
   }
 }

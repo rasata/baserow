@@ -18,6 +18,7 @@
 
     <template #node-workflow-node>
       <WorkflowNode
+        v-if="trigger"
         :key="updateKey"
         :node="trigger"
         :debug="workflowDebug"
@@ -28,7 +29,19 @@
         @replace-node="emit('replace-node', $event)"
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
+        @duplicate-node="emit('duplicate-node', $event)"
       />
+      <template v-else>
+        <div class="workflow-editor__trigger-selector" @scroll.stop>
+          <h2 class="workflow-editor__trigger-selector-title">
+            {{ $t('workflowEditor.chooseEvent') }}
+          </h2>
+          <WorkflowAddNodeMenu
+            :only-trigger="true"
+            @change="emit('add-node', { type: $event })"
+          />
+        </div>
+      </template>
     </template>
   </VueFlow>
 </template>
@@ -40,6 +53,9 @@ import { Controls } from '@vue2-flow/controls'
 import { ref, watch, toRefs, onMounted } from 'vue'
 import { inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
+import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
+import debounce from 'lodash.debounce'
+import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
 const props = defineProps({
   nodes: {
@@ -57,7 +73,13 @@ const props = defineProps({
 })
 
 const vueFlowEdges = []
-const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
+const emit = defineEmits([
+  'add-node',
+  'remove-node',
+  'input',
+  'move-node',
+  'duplicate-node',
+])
 
 const { onPaneClick } = useVueFlow()
 
@@ -68,8 +90,10 @@ const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 const updateKey = ref(1)
 
+const workflow = inject('workflow')
+
 const trigger = computed(() => {
-  return props.nodes.find((node) => node.previous_node_id === null)
+  return new NodeGraphHandler(workflow.value).getFirstNode()
 })
 
 const vueFlowNodes = computed(() => {
@@ -90,16 +114,29 @@ const computedNodes = computed(() => {
   return props.nodes
 })
 
+const triggerUpdate = debounce(() => {
+  updateKey.value += 1
+}, 500)
+
+const currentGraph = computed(() => workflow.value.graph)
+
 /**
- * This watcher is used to force the update the workflow graph when nodes are updated.
- *  Vue-flow prevents the update somehow.
+ * These watchers are used to force the update the workflow graph when nodes are updated.
+ *  Vue-flow prevents the natural update.
  */
 watch(
   computedNodes,
   () => {
-    updateKey.value += 1
+    triggerUpdate()
   },
   { deep: true }
+)
+watch(
+  currentGraph,
+  () => {
+    updateKey.value += 1
+  },
+  { deep: false }
 )
 
 /**
@@ -107,7 +144,9 @@ watch(
  * to ensure that the first node (the trigger) is selected by default.
  */
 onMounted(() => {
-  emit('input', props.nodes[0].id)
+  if (props.nodes.length) {
+    emit('input', props.nodes[0].id)
+  }
 })
 
 /**
