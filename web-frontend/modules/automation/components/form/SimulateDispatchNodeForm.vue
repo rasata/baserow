@@ -10,20 +10,34 @@
       {{ buttonLabel }}
     </Button>
 
-    <Alert v-if="cantBeTestedReason" type="info-neutral">
+    <Alert
+      v-if="cantBeTestedReason"
+      type="info-neutral"
+      class="margin-bottom-0"
+    >
       <p>{{ cantBeTestedReason }}</p>
     </Alert>
 
-    <Alert v-else-if="showTestNodeDescription" type="info-neutral">
-      <p>{{ $t('simulateDispatch.testNodeDescription') }}</p>
+    <Alert
+      v-if="isLoading"
+      :type="nodeType.isTrigger ? 'warning' : 'info-neutral'"
+    >
+      <p>
+        {{
+          nodeType.isTrigger
+            ? $t('simulateDispatch.triggerNodeAwaitingEvent')
+            : $t('simulateDispatch.simulationInProgress')
+        }}
+      </p>
     </Alert>
-
-    <Alert v-else-if="isLoading" type="info-neutral">
-      <p>{{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}</p>
+    <Alert v-else-if="!hasSampleData" type="info-neutral">
+      <p>
+        {{ $t('simulateDispatch.testNodeDescription') }}
+      </p>
     </Alert>
 
     <div
-      v-if="hasSampleData && !isSimulating"
+      v-if="hasSampleData && !isLoading"
       :class="{
         'simulate-dispatch-node__sample-data--error': isErrorSample,
       }"
@@ -183,14 +197,6 @@ const buttonLabel = computed(() => {
   return hasSampleData.value
     ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
     : app.i18n.t('simulateDispatch.buttonLabelTest')
-})
-
-const showTestNodeDescription = computed(() => {
-  if (Boolean(cantBeTestedReason.value) || hasSampleData.value) {
-    return false
-  }
-
-  return true
 })
 
 const simulateDispatchNode = async () => {
