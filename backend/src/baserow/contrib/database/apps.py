@@ -829,12 +829,14 @@ class DatabaseConfig(AppConfig):
             CreateViewFilterOperationType,
             CreateViewGroupByOperationType,
             CreateViewOperationType,
+            CreateViewRowOperationType,
             CreateViewSortOperationType,
             DeleteViewDecorationOperationType,
             DeleteViewFilterGroupOperationType,
             DeleteViewFilterOperationType,
             DeleteViewGroupByOperationType,
             DeleteViewOperationType,
+            DeleteViewRowOperationType,
             DeleteViewSortOperationType,
             DuplicateViewOperationType,
             ListAggregationsViewOperationType,
@@ -851,6 +853,7 @@ class DatabaseConfig(AppConfig):
             ReadViewFilterOperationType,
             ReadViewGroupByOperationType,
             ReadViewOperationType,
+            ReadViewRowOperationType,
             ReadViewsOrderOperationType,
             ReadViewSortOperationType,
             RestoreViewOperationType,
@@ -860,6 +863,7 @@ class DatabaseConfig(AppConfig):
             UpdateViewGroupByOperationType,
             UpdateViewOperationType,
             UpdateViewPublicOperationType,
+            UpdateViewRowOperationType,
             UpdateViewSlugOperationType,
             UpdateViewSortOperationType,
         )
@@ -872,6 +876,10 @@ class DatabaseConfig(AppConfig):
             UpdateWebhookOperationType,
         )
 
+        operation_type_registry.register(ReadViewRowOperationType())
+        operation_type_registry.register(CreateViewRowOperationType())
+        operation_type_registry.register(UpdateViewRowOperationType())
+        operation_type_registry.register(DeleteViewRowOperationType())
         operation_type_registry.register(CreateTableDatabaseTableOperationType())
         operation_type_registry.register(ListTablesDatabaseTableOperationType())
         operation_type_registry.register(OrderTablesDatabaseTableOperationType())

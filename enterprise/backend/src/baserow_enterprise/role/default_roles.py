@@ -161,12 +161,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
     CreateViewOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -183,6 +185,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewFilterOperationType,
     ReadViewGroupByOperationType,
     ReadViewOperationType,
+    ReadViewRowOperationType,
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     RestoreViewOperationType,
@@ -193,6 +196,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -348,7 +352,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
         ListRowsDatabaseTableOperationType,
-        ReadDatabaseRowOperationType,
         ReadViewOperationType,
         ReadFieldOperationType,
         ListViewSortOperationType,
@@ -389,6 +392,8 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadFieldRuleOperationType,
         ExportTableOperationType,
         DispatchDashboardDataSourceOperationType,
+        ReadDatabaseRowOperationType,
+        ReadViewRowOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -415,6 +420,9 @@ default_roles[EDITOR_ROLE_UID].extend(
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
         CanReceiveNotificationOnSubmitFormViewOperationType,
+        CreateViewRowOperationType,
+        UpdateViewRowOperationType,
+        DeleteViewRowOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
