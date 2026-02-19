@@ -1,11 +1,14 @@
 <template>
-  <Modal :left-sidebar="true">
+  <Modal ref="modal" :left-sidebar="true">
     <template #sidebar>
-      <template v-for="(features, planName) in paidFeaturePlans">
-        <div :key="planName + 'title'" class="modal-sidebar__title">
+      <template
+        v-for="(features, planName) in paidFeaturePlans"
+        :key="planName + 'title'"
+      >
+        <div class="modal-sidebar__title">
           {{ planName }}
         </div>
-        <ul :key="planName + 'items'" class="modal-sidebar__nav">
+        <ul class="modal-sidebar__nav">
           <li v-for="feature in features" :key="feature.getType()">
             <a
               class="modal-sidebar__nav-link"
@@ -48,7 +51,7 @@
         <Button
           type="primary"
           size="large"
-          :href="getPricingURL"
+          :href="pricingURL"
           target="_blank"
           tag="a"
           >{{ $t('paidFeaturesModal.viewPricing') }}</Button
@@ -94,8 +97,11 @@ export default {
     }
   },
   computed: {
-    getPricingURL() {
-      return this.$config.BASEROW_PRICING_URL || getPricingURL(this.instanceId)
+    pricingURL() {
+      const runtimeConfig = useRuntimeConfig()
+      return (
+        runtimeConfig.public.baserowPricingUrl || getPricingURL(this.instanceId)
+      )
     },
     paidFeaturePlans() {
       const plans = {}

@@ -236,7 +236,6 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -258,6 +257,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
  * will load the correct components into the header and body.
  */
 export default {
+  name: 'Table',
   components: {
     DefaultErrorPage,
     ViewGroupBy,
@@ -338,6 +338,12 @@ export default {
       default: '',
     },
   },
+  emits: [
+    'navigate-next',
+    'navigate-previous',
+    'selected-row',
+    'selected-view',
+  ],
   data() {
     return {
       // Shows a small spinning loading animation when the view is being refreshed.
@@ -482,9 +488,11 @@ export default {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
     this.$el.resizeObserver.observe(this.$el)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('table-refresh', this.refresh)
-    this.$el.resizeObserver.unobserve(this.$el)
+    if (this.$el?.resizeObserver) {
+      this.$el.resizeObserver.unobserve(this.$el)
+    }
     this.$bus.$off('open-table-views-context', this.openTableViewsContext)
     this.$bus.$off('close-table-views-context', this.closeTableViewsContext)
   },
@@ -605,11 +613,7 @@ export default {
           notifyIf(error)
         }
       }
-      if (
-        Object.prototype.hasOwnProperty.call(this.$refs, 'view') &&
-        // TODO crash here can't convert undefined to object
-        Object.prototype.hasOwnProperty.call(this.$refs.view, 'refresh')
-      ) {
+      if (typeof this.$refs.view?.refresh === 'function') {
         await this.$refs.view.refresh()
       }
       // Before the callback is called, mark the table as not refreshing anymore, so

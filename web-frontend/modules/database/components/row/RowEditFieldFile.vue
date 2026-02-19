@@ -36,6 +36,7 @@
     <ButtonText
       v-if="!readOnly"
       icon="iconoir-plus"
+      tag="a"
       @click.prevent="showModal()"
     >
       {{ $t('rowEditFieldFile.addFile') }}
@@ -181,10 +182,10 @@ export default {
     },
     forceUpdateFile(id, values) {
       const fileIndex = this.getFileInProgressIndex(id)
-      this.$set(this.filesInProgress, fileIndex, {
+      this.filesInProgress[fileIndex] = {
         ...this.files[fileIndex],
         ...values,
-      })
+      }
     },
     forceRemoveFile(index) {
       if (this.getFileInProgressIndex(this.currentFileUploading.id) === index) {

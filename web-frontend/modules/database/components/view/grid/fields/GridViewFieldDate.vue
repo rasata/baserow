@@ -38,12 +38,13 @@
               :inline="true"
               :monday-first="true"
               :use-utc="true"
-              :value="pickerDate"
-              :language="datePickerLang[$i18n.locale]"
+              :model-value="pickerDate"
+              :language="datePickerLanguage"
+              :open-date="pickerDate || new Date()"
               class="datepicker"
-              @input="chooseDate(field, $event)"
+              @update:model-value="chooseDate(field, $event)"
               @selected="preventNextUnselect = true"
-            ></date-picker>
+            />
           </client-only>
         </Context>
 
@@ -64,7 +65,7 @@
             :hide-on-click-outside="false"
             :notation="field.date_time_format"
             @input="chooseTime(field, $event)"
-          ></TimeSelectContext>
+          />
         </template>
       </template>
       <div v-if="field.date_show_tzinfo" class="grid-field-date__tzinfo">
@@ -80,18 +81,18 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
+// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 
 export default {
   components: { TimeSelectContext },
   mixins: [gridField, gridFieldInput, dateField],
+  setup() {
+    return useDatePickerLanguage()
+  },
   data() {
     return {
       preventNextUnselect: false,
-      datePickerLang: {
-        en,
-        fr,
-      },
     }
   },
   methods: {

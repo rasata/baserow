@@ -147,6 +147,7 @@ export default {
       default: '',
     },
   },
+  emits: ['hide'],
   data() {
     return {
       // Indicates if we're loading new rows.
@@ -232,22 +233,28 @@ export default {
         return
       }
 
-      // Remove the not existing keys because the related fields might have been
-      // deleted in the meantime, and so we're keeping the local storage clean.
+      // Remove entries for fields that no longer exist in the table, keeping
+      // IndexedDB clean. Uses allFields (the actual table fields) instead of
+      // fieldOptions (grid view API response) which may be empty or incomplete.
+      const existingFieldIds = new Set(
+        this.allFields.map((field) => field.id.toString())
+      )
       value = Object.fromEntries(
-        Object.entries(value).filter((key) => {
-          return Object.prototype.hasOwnProperty.call(this.fieldOptions, key[0])
-        })
+        Object.entries(value).filter(([key]) => existingFieldIds.has(key))
       )
 
       try {
+        // clone() strips Vue 3 Proxy wrappers so the value can be stored via
+        // IndexedDB's structured clone algorithm.
         await setData(
           databaseName,
           storeName,
           this.persistentFieldOptionsKey,
-          value
+          clone(value)
         )
-      } catch (error) {}
+      } catch (error) {
+        /* empty */
+      }
     },
   },
   async mounted() {
@@ -264,6 +271,17 @@ export default {
 
     await this.orderFieldsByFirstGridViewFieldOptions(this.tableId)
 
+    if (this.persistentFieldOptionsKey) {
+      try {
+        const override = await getData(
+          databaseName,
+          storeName,
+          this.persistentFieldOptionsKey
+        )
+        this.fieldOptionsOverride = override || {}
+      } catch (error) {}
+    }
+
     // Because the page data depends on having some initial metadata we mark the state
     // as loaded after that. Only a loading animation is shown if there isn't any
     // data.
@@ -277,7 +295,7 @@ export default {
       this.focusSearch
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.focusSearch)
   },
   methods: {
@@ -288,8 +306,9 @@ export default {
     async fetchFields(tableId) {
       try {
         const { data } = await FieldService(this.$client).fetchAll(tableId)
+        const { $registry } = useNuxtApp()
         data.forEach((part, index, d) => {
-          populateField(data[index], this.$registry)
+          populateField(data[index], $registry)
         })
         const primaryIndex = data.findIndex((item) => item.primary === true)
         this.primary =
@@ -334,15 +353,6 @@ export default {
           data: { field_options: fieldOptions },
         } = await ViewService(this.$client).fetchFieldOptions(views[0].id)
         this.fieldOptions = fieldOptions
-
-        if (this.persistentFieldOptionsKey) {
-          const override = await getData(
-            databaseName,
-            storeName,
-            this.persistentFieldOptionsKey
-          )
-          this.fieldOptionsOverride = override || {}
-        }
       } catch (error) {
         notifyIf(error, 'view')
       }

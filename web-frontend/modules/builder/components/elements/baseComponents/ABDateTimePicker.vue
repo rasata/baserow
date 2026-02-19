@@ -12,10 +12,7 @@
       @click="$refs.dateContext.show($refs.wrapper, 'bottom', 'left', 0)"
       @input="updateCalendar"
       @keydown.enter.prevent="$event.target.blur()"
-      @blur="
-        updateDate($event.target.value)
-        $refs.dateContext.hide()
-      "
+      @blur="handleDateBlur($event)"
     />
     <div ref="timeWrapper">
       <ABInput
@@ -26,10 +23,7 @@
         @focus="$refs.timeContext.toggle($refs.timeWrapper, 'bottom', 'left')"
         @click="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
         @keydown.enter.prevent="$event.target.blur()"
-        @blur="
-          updateTime($event.target.value)
-          $refs.timeContext.hide()
-        "
+        @blur="handleTimeBlur($event)"
       />
     </div>
     <Context
@@ -41,10 +35,11 @@
       <client-only>
         <date-picker
           v-model="calendarValue"
+          :open-date="calendarValue || new Date()"
           :inline="true"
           :monday-first="true"
           class="ab-datetime-picker__calendar"
-          @input="updateDate"
+          @update:model-value="updateDate"
         />
       </client-only>
     </Context>
@@ -82,7 +77,7 @@ import moment from '@baserow/modules/core/moment'
 export default {
   name: 'ABDateTimePicker',
   props: {
-    value: {
+    modelValue: {
       type: [String, DateOnly, Date],
       required: false,
       default: null,
@@ -113,6 +108,7 @@ export default {
       default: () => ({}),
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       dateInputValue: '',
@@ -121,7 +117,7 @@ export default {
     }
   },
   watch: {
-    value: {
+    modelValue: {
       handler(value) {
         this.refreshDate(value)
       },
@@ -129,13 +125,13 @@ export default {
     },
     dateFormat: {
       handler(value) {
-        this.refreshDate(this.value)
+        this.refreshDate(this.modelValue)
       },
       immediate: true,
     },
     timeFormat: {
       handler(value) {
-        this.refreshDate(this.value)
+        this.refreshDate(this.modelValue)
       },
       immediate: true,
     },
@@ -185,7 +181,7 @@ export default {
       }
 
       this.$emit(
-        'input',
+        'update:modelValue',
         updateDateTime(
           value,
           this.timeInputValue,
@@ -209,7 +205,7 @@ export default {
 
       this.timeInputValue = value
       this.$emit(
-        'input',
+        'update:modelValue',
         updateDateTime(
           this.dateInputValue,
           value,
@@ -228,6 +224,22 @@ export default {
      */
     updateCalendar(value) {
       this.calendarValue = parseDateForCalendar(value, this.dateFormat)
+    },
+    /**
+     * Handle blur event on the date input field.
+     * @param {Event} event - The blur event.
+     */
+    handleDateBlur(event) {
+      this.updateDate(event.target.value)
+      this.$refs.dateContext.hide()
+    },
+    /**
+     * Handle blur event on the time input field.
+     * @param {Event} event - The blur event.
+     */
+    handleTimeBlur(event) {
+      this.updateTime(event.target.value)
+      this.$refs.timeContext.hide()
     },
   },
 }

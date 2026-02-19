@@ -62,10 +62,11 @@
             :inline="true"
             :monday-first="true"
             :use-utc="true"
-            :value="dateObject"
-            :language="datePickerLang[$i18n.locale]"
+            :model-value="dateObject"
+            :language="datePickerLanguage"
+            :open-date="dateObject || new Date()"
             class="datepicker"
-            @input="chooseDate($event)"
+            @update:model-value="chooseDate($event)"
           ></date-picker>
         </client-only>
       </Context>
@@ -80,21 +81,28 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filterTypeMultiStepDateInput'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 
 export default {
   name: 'ViewFilterTypeMultiStepDate',
   mixins: [filterTypeMultiStepDateInput],
+  setup(...args) {
+    return {
+      ...(filterTypeMultiStepDateInput.setup?.(...args) ?? {}),
+      ...useDatePickerLanguage(),
+    }
+  },
   data() {
     return {
       value: '',
       daysAgoValue: '',
       dateString: '',
-      dateObject: '',
+      dateObject: null,
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },
@@ -135,7 +143,14 @@ export default {
           this.copy = newDate.format('YYYY-MM-DD')
 
           if (sender !== 'dateObject') {
-            this.dateObject = newDate.format('YYYY-MM-DD')
+            // Because of some bugs with parsing and localizing correctly dates
+            // in the vuejs3-datepicker component passed both as string and
+            // dates, we need to localize the date correctly and replace the
+            // timezone with the browser timezone. This is needed to be able to
+            // show the correct date in the datepicker.
+            const pickerDate = newDate.clone()
+            pickerDate.tz(moment.tz.guess(), true)
+            this.dateObject = pickerDate.toDate()
           }
 
           if (sender !== 'dateString') {
@@ -157,7 +172,7 @@ export default {
     },
     chooseDate(value) {
       const timezone = this.getTimezone()
-      const pickerDate = moment.utc(value)
+      const pickerDate = moment(value)
       if (!pickerDate.isValid()) {
         return
       } else if (timezone !== null) {

@@ -44,8 +44,8 @@
         "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo."
     },
     "serviceType": {
-        "localBaserowGetRow": "Leggi {singleRow}",
-        "localBaserowListRows": "Elenca {multiple rows}",
+        "localBaserowGetRow": "Leggi single Row",
+        "localBaserowListRows": "Elenca multiple rows",
         "localBaserowAggregateRows": "Aggrega campo",
         "misconfigured": "Errore di configurazione",
         "trashedField": "Campo eliminato"

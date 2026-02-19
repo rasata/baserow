@@ -38,7 +38,8 @@
         "errorStartingSlash": "경로는 '/'로 시작해야 합니다",
         "errorValidPathCharacters": "경로에 잘못된 문자가 포함되어 있습니다",
         "errorUniquePathParams": "경로 매개변수는 고유해야 합니다.",
-        "errorUniqueValidQueryParams": "쿼리 매개변수 이름은 고유하고 유효해야 합니다."
+        "errorUniqueValidQueryParams": "쿼리 매개변수 이름은 고유하고 유효해야 합니다.",
+        "errorNameNotUniqueDescription": "페이지에 고유한 이름을 입력해 주세요"
     },
     "pageHeaderItemTypes": {
         "labelElements": "요소",
@@ -251,7 +252,7 @@
         "altTextDescription": "스크린 리더에서 사용되며 이미지를 로드할 수 없는 경우 표시됩니다",
         "fileSourceTypeUpload": "업로드",
         "fileSourceTypeURL": "URL",
-        "urlWarning": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "urlWarning": "참고: 입력하신 URL을 직접 관리하시거나 신뢰할 수 있는 사이트인지 확인해 주십시오.",
         "uploadFileButton": "파일 업로드"
     },
     "iframeElementForm": {
@@ -260,7 +261,7 @@
         "sourceTypeLabel": "소스 유형",
         "urlLabel": "URL",
         "urlPlaceholder": "삽입할 외부 리소스의 링크",
-        "urlHelp": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "urlHelp": "참고: 입력하신 URL을 직접 관리하시거나 신뢰할 수 있는 사이트인지 확인해 주십시오.",
         "embedLabel": "임베드",
         "embedPlaceholder": "삽입할 원시 HTML 콘텐츠",
         "heightLabel": "높이 (px)",
@@ -413,7 +414,7 @@
     },
     "integrationSettings": {
         "title": "통합",
-        "noIntegrationMessage": "아직 통합을 생성하지 않았습니다. 데이터 소스, 작업 또는 사용자 인증을 추가하여 생성할 수 있습니다.",
+        "noIntegrationMessage": "아직 통합을 생성하지 않았습니다. 데이터 소스, 작업 또는 사용자 인증을 추가하여 통합을 생성할 수 있습니다.",
         "integrationMessage": "데이터 소스, 작업 또는 사용자 인증을 추가하여 새로운 통합을 생성할 수 있습니다."
     },
     "dataSourceForm": {
@@ -850,7 +851,7 @@
         "loggedInVisitors": "로그인한 방문자",
         "notLoggedInVisitors": "로그아웃한 방문자",
         "warningTitle": "이것은 보안 기능입니다",
-        "warningMessage": "<a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>문서</a>를 확인하여 데이터를 보호하는 방법에 대해 자세히 알아보세요.",
+        "warningMessage": "&lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'&gt;문서&lt;/a&gt;를 확인하여 데이터를 보호하는 방법에 대해 자세히 알아보세요.",
         "excludedRolesLabel": "모든 역할 제외",
         "switchAllowLabel": "허용",
         "switchDisallowLabel": "허용 안 함",
@@ -867,7 +868,8 @@
         "errorFetchingRolesMessage": "사용자 역할을 가져오는 동안 문제가 발생했습니다.",
         "visibilityCondition": "표시성 조건",
         "visibilityConditionHelper": "이 수식의 결과가 참이고 위의 방문자 선택 사항이 참이면 요소가 표시됩니다. 이 조건은 요소의 표시 여부에만 영향을 미칩니다. 서버 응답에서 데이터를 제외하려면 위의 사용자 역할 필터링 옵션을 사용하세요.",
-        "visibilityConditionPlaceholder": "상태..."
+        "visibilityConditionPlaceholder": "상태...",
+        "documentationLink": "문서"
     },
     "userDataProviderType": {
         "isAuthenticated": "인증됨",
@@ -893,7 +895,8 @@
     },
     "customStyle": {
         "themeOverrides": "테마 재정의",
-        "configureThemeOverrides": "이 요소에 대한 테마 재정의 구성"
+        "configureThemeOverrides": "이 요소에 대한 테마 재정의 구성",
+        "backToElement": "요소 구성으로 돌아가기"
     },
     "serviceSchemaPropertySelector": {
         "label": "속성",
@@ -904,7 +907,8 @@
         "noDataSources": "사용 가능한 데이터 소스 없음",
         "shared": "공유됨",
         "pageOnly": "이 페이지",
-        "noSharedDataSources": "공유 데이터 소스가 없습니다"
+        "noSharedDataSources": "공유 데이터 소스가 없습니다",
+        "addNew": "새 데이터 소스 추가"
     },
     "common": {
         "timeFormat12Hour": "12 시간",
@@ -948,7 +952,8 @@
         "logInPageInfoMessage": "익명의 사용자가 이 페이지에 접근을 시도하면 {logInPageName} 페이지로 리디렉션됩니다."
     },
     "pageEditor": {
-        "pageNotFound": "페이지를 찾을 수 없습니다"
+        "pageNotFound": "페이지를 찾을 수 없습니다",
+        "title": "베이스로우 | 애플리케이션 빌더"
     },
     "builderLoginPageForm": {
         "pageDropdownLabel": "로그인 페이지",

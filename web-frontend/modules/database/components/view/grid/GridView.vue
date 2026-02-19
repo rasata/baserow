@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="gridView"
     v-scroll="scroll"
     class="grid-view"
     :class="[
@@ -165,7 +166,7 @@
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
       :offset="activeGroupByWidth"
-      vertical="getVerticalScrollbarElement"
+      :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
     <Context ref="rowContext" overflow-scroll max-height-if-outside-viewport>
@@ -413,7 +414,6 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
@@ -472,6 +472,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   data() {
     return {
       lastHoveredRow: null,
@@ -490,6 +491,7 @@ export default {
       // Set to true when the row is being refreshed to avoid multiple fields
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
+      resizeObserver: null,
     }
   },
   computed: {
@@ -562,6 +564,14 @@ export default {
         `${this.storePrefix}view/grid/getActiveSearchTerm`
       ]
     },
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
+    },
+    isMultiSelectActive() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/isMultiSelectActive'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -620,7 +630,7 @@ export default {
       this.$emit('refresh')
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -629,7 +639,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/isMultiSelectActive',
       }),
     }
-  },
+  },*/
   created() {
     // When the grid view is created we want to update the scrollbars.
     this.fieldsUpdated()
@@ -638,17 +648,13 @@ export default {
     this.$bus.$on('field-deleted', this.fieldDeleted)
   },
   mounted() {
-    this.$el.resizeObserver = new ResizeObserver(this.onWindowResize)
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver = new ResizeObserver(this.onWindowResize)
+    this.resizeObserver.observe(this.$refs.gridView)
     window.addEventListener('keydown', this.keyDownEvent)
     window.addEventListener('copy', this.copySelection)
     window.addEventListener('paste', this.pasteFromMultipleCellSelection)
     window.addEventListener('click', this.cancelMultiSelectIfActive)
     window.addEventListener('mouseup', this.multiSelectStop)
-    this.$refs.left.$el.addEventListener(
-      'scroll',
-      this.$el.horizontalScrollEvent
-    )
     this.$store.dispatch(
       this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
       { view: this.view }
@@ -659,8 +665,11 @@ export default {
       this.populateAndEditRow(this.row)
     }
   },
-  beforeDestroy() {
-    this.$el.resizeObserver.unobserve(this.$el)
+  beforeUnmount() {
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.disconnect()
+      this.resizeObserver = null
+    }
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)
     window.removeEventListener('paste', this.pasteFromMultipleCellSelection)
@@ -770,15 +779,15 @@ export default {
     },
     copyLinkToSelectedRow(event, selectedRow) {
       const url =
-        this.$config.BASEROW_EMBEDDED_SHARE_URL +
+        this.$config.public.baserowEmbeddedShareUrl +
         this.$router.resolve({
           name: 'database-table-row',
           params: { ...this.$route.params, rowId: selectedRow.id },
         }).href
       copyToClipboard(url)
       this.$store.dispatch('toast/info', {
-        title: this.$i18n.t('gridView.copiedRowURL'),
-        message: this.$i18n.t('gridView.copiedRowURLMessage', {
+        title: this.$t('gridView.copiedRowURL'),
+        message: this.$t('gridView.copiedRowURLMessage', {
           id: selectedRow.id,
         }),
       })
@@ -1296,7 +1305,7 @@ export default {
       // being sorted, and this will only be the case after a refresh.
       await this.$store.dispatch(
         this.storePrefix + 'view/grid/updateActiveGroupBys',
-        clone(this.view.group_bys)
+        clone(this.view.group_bys || [])
       )
       this.$nextTick(() => {
         this.fieldsUpdated()
@@ -1375,7 +1384,7 @@ export default {
           this.storePrefix + 'view/grid/isMultiSelectActive'
         ] &&
         !event.shiftKey &&
-        (!isElement(this.$el, event.target) ||
+        (!isElement(this.$refs.gridView, event.target) ||
           !['grid-view__row', 'grid-view__rows', 'grid-view'].includes(
             event.target.classList[0]
           ))
@@ -1579,7 +1588,7 @@ export default {
 
       // The backend will fail hard if it tries to update more rows than the limit, so
       // we're slicing the data here.
-      const pageSizeLimit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+      const pageSizeLimit = this.$config.public.baserowRowPageSizeLimit
       if (textData.length > pageSizeLimit) {
         this.$store.dispatch('toast/info', {
           title: this.$t('gridView.tooManyItemsTitle'),
@@ -1669,7 +1678,7 @@ export default {
     checkCanFitInTwoColumns() {
       // In some cases this method is called when the component hasn't fully been
       // loaded. This will make sure we don't change the state before that initial load.
-      if (!this.$el) {
+      if (!this.$refs.gridView) {
         return
       }
 
@@ -1681,7 +1690,7 @@ export default {
         (primary ? this.getFieldWidth(primary) : 0) +
         300
 
-      this.canFitInTwoColumns = this.$el.clientWidth > maxWidth
+      this.canFitInTwoColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
      * Event called when the grid view element window resizes.

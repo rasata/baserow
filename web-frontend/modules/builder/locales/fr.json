@@ -193,7 +193,8 @@
         "errorNameNotUnique": "Une page avec le même nom existe déjà",
         "errorValidPathCharacters": "Le chemin contient des caractères invalides",
         "errorStartingSlash": "Un chemin doit commencer par un '/'",
-        "errorUniqueValidQueryParams": "Les noms des paramètres de requête doivent être uniques et valides."
+        "errorUniqueValidQueryParams": "Les noms des paramètres de requête doivent être uniques et valides.",
+        "errorNameNotUniqueDescription": "Veuillez saisir un nom unique pour la page"
     },
     "publishActionModal": {
         "publish": "Publier",
@@ -327,8 +328,8 @@
     },
     "integrationSettings": {
         "title": "Intégrations",
-        "noIntegrationMessage": "Vous n’avez pas encore créé d'intégration. Elles peuvent être créés en ajoutant une source de données, une action ou une source d'authentification.",
-        "integrationMessage": "Vous pouvez créer une intégration en ajoutant une source de données, une action ou une source d'authentification utilisateur."
+        "noIntegrationMessage": "Vous n'avez pas encore créé d'intégrations. Elles peuvent être créés lors de l'ajout d'une source de données, d'une action ou d'une authentification utilisateur.",
+        "integrationMessage": "Vous pouvez créer de nouvelles intégrations en ajoutant une source de données, une action ou une authentification utilisateur."
     },
     "dataSourceForm": {
         "namePlaceholder": "Nom de la source",
@@ -629,7 +630,7 @@
         "empty": "IFrame vide...",
         "sourceTypeLabel": "Type de la source",
         "urlLabel": "URL",
-        "urlHelp": "Remarque : assurez-vous que vous contrôlez ou faites confiance à l'URL saisie.",
+        "urlHelp": "Remarque : assurez-vous que vous contrôlez ou faites confiance à l'URL saisie.",
         "embedLabel": "Embarquer",
         "embedPlaceholder": "Contenu HTML brut à intégrer",
         "heightLabel": "Hauteur (px)",
@@ -694,7 +695,7 @@
         "loggedInVisitors": "Visiteurs connectés",
         "notLoggedInVisitors": "Visiteurs déconnectés",
         "warningTitle": "C'est un dispositif de sécurité",
-        "warningMessage": "Veuillez consulter la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> pour plus d'informations sur la sécurité des données.",
+        "warningMessage": "Veuillez consulter la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'&gt;documentation&lt;/a&gt; pour plus d'informations sur la sécurité des données.",
         "excludedRolesLabel": "tous les rôles sauf",
         "switchAllowLabel": "Autoriser",
         "switchDisallowLabel": "Interdir",
@@ -711,7 +712,8 @@
         "errorFetchingRolesTitle": "Impossible de récupérer les rôles des utilisateurs",
         "visibilityCondition": "Conditions de visibilité",
         "visibilityConditionHelper": "Si le résultat de cette formule est vrai et que le statut du visiteur ci-dessus est vrai, l'élément sera visible. Cette condition n'affecte que la visibilité de l'élément. Pour exclure des données de la réponse du serveur, utilisez l'option de filtrage du rôle de l'utilisateur ci-dessus.",
-        "visibilityConditionPlaceholder": "Condition..."
+        "visibilityConditionPlaceholder": "Condition...",
+        "documentationLink": "documentation"
     },
     "imageInput": {
         "labelDescription": "Description par défaut",
@@ -895,7 +897,8 @@
     },
     "customStyle": {
         "themeOverrides": "Style spécifique",
-        "configureThemeOverrides": "Définir les exceptions au thème pour cet élément"
+        "configureThemeOverrides": "Définir les exceptions au thème pour cet élément",
+        "backToElement": "Retour à la configuration de l'élément"
     },
     "inputThemeConfigBlock": {
         "label": "Libéllé",
@@ -965,7 +968,8 @@
         "label": "Source des données",
         "shared": "partagée",
         "pageOnly": "cette page",
-        "noSharedDataSources": "Aucune source de données partagée disponible"
+        "noSharedDataSources": "Aucune source de données partagée disponible",
+        "addNew": "Ajouter une nouvelle source de données"
     },
     "serviceSchemaPropertySelector": {
         "label": "Propriété",
@@ -1037,7 +1041,8 @@
         "description": "Qui peut consulter cette page ?"
     },
     "pageEditor": {
-        "pageNotFound": "Page non trouvée"
+        "pageNotFound": "Page non trouvée",
+        "title": "Application"
     },
     "builderLoginPageForm": {
         "pageDropdownLabel": "Page de connexion",

@@ -1,23 +1,19 @@
-import pathToRegexp from 'path-to-regexp'
+import { match } from 'path-to-regexp'
 
 export const resolveApplicationRoute = (pages, fullPath) => {
-  let found
+  if (fullPath === undefined || fullPath === null) {
+    return undefined
+  }
 
   for (const page of pages) {
-    const keys = [] // Keys are populated by the next call
-    const re = pathToRegexp(page.path, keys)
-    const match = re.exec(fullPath)
+    const matcher = match(page.path.slice(1))
+    const matched = matcher(fullPath)
 
-    if (match) {
-      // The page path has matched we can stop here our search and return the result
-      const [path, ...paramValues] = match
-      // TODO the parameter resolution here is really simple. Should be enough for a
-      // long time but we can do better here.
-      const params = Object.fromEntries(
-        paramValues.map((paramValue, index) => [keys[index].name, paramValue])
-      )
-      return [page, path, params]
+    if (matched) {
+      // matched = { path, params, index? }
+      return [page, matched.path, matched.params]
     }
   }
-  return found
+
+  return undefined
 }

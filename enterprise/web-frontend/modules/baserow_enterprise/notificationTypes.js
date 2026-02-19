@@ -5,6 +5,7 @@ import TwoWaySyncUpdateFailedNotification from '@baserow_enterprise/components/n
 import TwoWaySyncDeactivatedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncDeactivatedNotification'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import { SyncedFieldsConfigureDataSyncType } from '@baserow/modules/database/configureDataSyncTypes'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export class PeriodicDataSyncDeactivatedNotificationType extends NotificationType {
   static getType() {
@@ -20,14 +21,14 @@ export class PeriodicDataSyncDeactivatedNotificationType extends NotificationTyp
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-open-configure-data-sync',
-      params: {
+    return tableRouteResetViewIfNeeded(
+      {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
         selectedPage: PeriodicIntervalFieldsConfigureDataSyncType.getType(),
       },
-    }
+      'database-table-open-configure-data-sync'
+    )
   }
 }
 
@@ -45,14 +46,14 @@ export class TwoWayDataSyncUpdateFiledNotificationType extends NotificationType 
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-open-configure-data-sync',
-      params: {
+    return tableRouteResetViewIfNeeded(
+      {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
         selectedPage: SyncedFieldsConfigureDataSyncType.getType(),
       },
-    }
+      'database-table-open-configure-data-sync'
+    )
   }
 }
 
@@ -70,13 +71,13 @@ export class TwoWaySyncDeactivatedNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-open-configure-data-sync',
-      params: {
+    return tableRouteResetViewIfNeeded(
+      {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
         selectedPage: SyncedFieldsConfigureDataSyncType.getType(),
       },
-    }
+      'database-table-open-configure-data-sync'
+    )
   }
 }

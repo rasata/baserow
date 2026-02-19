@@ -8,7 +8,7 @@
       <i class="iconoir-book-stack assistant__sources-icon"></i>
       <span class="assistant__sources-label">
         {{
-          $tc('assistantMessageSources.sources', sources.length, {
+          $t('assistantMessageSources.sources', sources.length, {
             count: sources.length,
           })
         }}
@@ -57,6 +57,7 @@
 <script>
 export default {
   name: 'AssistantMessageSources',
+  emits: ['toggle'],
   props: {
     sources: {
       type: Array,

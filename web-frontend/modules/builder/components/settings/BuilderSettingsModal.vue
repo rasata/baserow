@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     left-sidebar
     left-sidebar-scrollable
     :content-padding="
@@ -15,7 +16,11 @@
           <a
             v-tooltip="setting.isDeactivatedReason({ workspace }) || null"
             class="modal-sidebar__nav-link"
-            :class="{ active: setting === settingSelected }"
+            :class="{
+              active:
+                settingSelected &&
+                setting.getType() === settingSelected.getType(),
+            }"
             @click="onClick(setting)"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
@@ -51,7 +56,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
-import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
+//import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 
 export default {
   name: 'BuilderSettingsModal',
@@ -75,6 +80,7 @@ export default {
       default: false,
     },
   },
+  emits: ['created'],
   data() {
     return {
       settingSelected: null,
@@ -126,7 +132,7 @@ export default {
 
       const builderApplicationType = this.$registry.get(
         'application',
-        BuilderApplicationType.getType()
+        'builder'
       )
       builderApplicationType.loadExtraData(this.builder)
 

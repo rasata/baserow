@@ -12,9 +12,10 @@ export default {
       properties: null,
       syncedProperties: [],
       updateLoading: false,
+      syncLoading: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   computed: {
@@ -30,8 +31,8 @@ export default {
           a.initially_selected === b.initially_selected
             ? 0
             : a.initially_selected
-            ? -1
-            : 1
+              ? -1
+              : 1
         )
     },
   },
@@ -106,6 +107,7 @@ export default {
 
       this.hideError()
       this.job = null
+      this.syncLoading = true
 
       try {
         const { data: job } = await DataSyncService(this.$client).syncTable(
@@ -114,6 +116,8 @@ export default {
         this.startJobPoller(job)
       } catch (error) {
         this.handleError(error)
+      } finally {
+        this.syncLoading = false
       }
     },
     async update(table, values, syncTable = true) {

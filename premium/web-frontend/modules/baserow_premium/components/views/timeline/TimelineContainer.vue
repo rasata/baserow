@@ -203,7 +203,6 @@ import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import ResizeObserver from 'resize-observer-polyfill'
 import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 
 const timescales = {
@@ -261,6 +260,7 @@ const timescales = {
 
 export default {
   name: 'TimelineContainer',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     RowCreateModal,
     RowEditModal,
@@ -323,6 +323,7 @@ export default {
       showHiddenFieldsInRowModal: false,
       enableAutoScroll: false,
       refreshingRow: false,
+      onUnmountCallback: null,
     }
   },
   computed: {
@@ -334,9 +335,6 @@ export default {
     },
     rowCount() {
       return this.rows.length
-    },
-    containerHeight() {
-      return this.rowsCount * this.rowHeight
     },
     scrollAreaElement() {
       return this.$refs.gridBody
@@ -407,6 +405,9 @@ export default {
     },
     'view.timescale'() {
       // Update the timescale as soon as it changes in the store.
+      if (!this.firstVisibleDate) {
+        return // Grid not initialized yet
+      }
       let currDate = this.firstVisibleDate
         .clone()
         .add(Math.floor(this.visibleColumnCount / 2), this.unit)
@@ -463,9 +464,6 @@ export default {
 
     const el = this.scrollAreaElement
     el.addEventListener('scroll', onScroll)
-    this.$once('hook:beforeDestroy', () => {
-      el.removeEventListener('scroll', onScroll)
-    })
 
     // Setup the resize observer to update the grid when the size of the container changes.
     const setupGridDebounced = debounce(() => {
@@ -475,13 +473,21 @@ export default {
       setupGridDebounced()
     })
     resizeObserver.observe(this.$el)
-    this.$once('hook:beforeDestroy', () => {
-      resizeObserver.disconnect()
-    })
 
     // Open the row edit modal if the row is set.
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
+    }
+
+    this.onUnmountCallback = () => {
+      el.removeEventListener('scroll', onScroll)
+      resizeObserver.disconnect()
+    }
+  },
+  beforeUnmount() {
+    if (this.onUnmountCallback) {
+      this.onUnmountCallback()
+      this.onUnmountCallback = null
     }
   },
   methods: {
@@ -531,6 +537,9 @@ export default {
      */
     updateGridDimensions() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return
+      }
       this.gridWidth = el.clientWidth
       this.gridHeight = el.clientHeight
       this.columnWidth = Math.max(
@@ -545,6 +554,9 @@ export default {
      */
     getVisibleColumnsRange() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return { startIndex: 0, endIndex: 0 }
+      }
       const startIndex = Math.floor(el.scrollLeft / this.columnWidth)
       const endIndex = startIndex + this.visibleColumnCount + 1
       return { startIndex, endIndex }
@@ -563,6 +575,9 @@ export default {
      */
     onResizeUpdateGrid() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return
+      }
       const prevPos = el.scrollLeft / el.scrollWidth
 
       this.updateGridDimensions()
@@ -627,12 +642,15 @@ export default {
      */
     getVisibleRowsRange() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return { startIndex: 0, endIndex: 0 }
+      }
       const elHeight = el.clientHeight
       const minRowsToRender = Math.ceil(elHeight / this.rowHeight) + 1
       let startIndex = Math.floor(el.scrollTop / this.rowHeight)
       let endIndex = startIndex + minRowsToRender
-      if (endIndex > this.rowsCount) {
-        endIndex = this.rowsCount
+      if (endIndex > this.rowCount) {
+        endIndex = this.rowCount
         startIndex = Math.max(0, endIndex - minRowsToRender)
       }
       return { startIndex, endIndex }

@@ -7,6 +7,7 @@ from http import HTTPStatus
 from io import BytesIO, IOBase
 from typing import Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
@@ -109,7 +110,7 @@ def download_airtable_file(
     """
 
     if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
-        response = requests.get(download_file.url, headers=headers)  # nosec B113
+        response = requests.get(download_file.url, headers=headers)  # noqa: S113
     elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
         response = AirtableHandler.fetch_attachment(
             row_id=download_file.row_id,
@@ -129,6 +130,36 @@ def download_airtable_file(
             f"File {name} could not be downloaded (HTTP {response.status_code}).",
         )
 
+    file_size_bytes = None
+
+    # Use Content-Range header for partial content
+    if response.status_code == HTTPStatus.PARTIAL_CONTENT:
+        content_range = response.headers.get("Content-Range", "")
+        try:
+            total_size = content_range.split("/")[-1]
+            file_size_bytes = int(total_size)
+        except (TypeError, ValueError):
+            raise FileDownloadFailed(f"Could not determine the size of file {name}.")
+
+    # Use Content-Length if the status code is not partial content
+    if file_size_bytes is None:
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None:
+            try:
+                file_size_bytes = int(content_length)
+            except (TypeError, ValueError):
+                file_size_bytes = None
+
+    # If we cannot determine the size from headers, treat this as a download failure
+    if file_size_bytes is None:
+        raise FileDownloadFailed(f"Could not determine the size of file {name}.")
+
+    # Prevent upload to Baserow failures by excluding oversized files
+    max_size_bytes = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
+    if file_size_bytes > max_size_bytes:
+        raise FileDownloadFailed(
+            f"File {name} exceeds the size limit of {settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB} bytes."
+        )
     return response
 
 
@@ -197,12 +228,12 @@ class AirtableHandler:
         """
 
         url = f"{AIRTABLE_BASE_URL}/{share_id}"
-        response = requests.get(
+        response = requests.get(  # noqa: S113
             url,
             headers=BASE_HEADERS,
             cookies=config.get_session_cookies(),
             allow_redirects=False,
-        )  # nosec B113
+        )
 
         if response.status_code == 302 and response.headers.get(
             "Location", ""
@@ -720,7 +751,7 @@ class AirtableHandler:
                         SCOPE_FIELD,
                         table["name"],
                         ERROR_TYPE_UNSUPPORTED_FEATURE,
-                        f"""Field "{column['name']}" with field type {column["type"]} was not imported because it is not supported.""",
+                        f"""Field "{column["name"]}" with field type {column["type"]} was not imported because it is not supported.""",
                     )
                     continue
 
@@ -896,7 +927,7 @@ class AirtableHandler:
                         SCOPE_VIEW,
                         table["name"],
                         ERROR_TYPE_UNSUPPORTED_FEATURE,
-                        f"View \"{view['name']}\" was not imported because "
+                        f'View "{view["name"]}" was not imported because '
                         f"{view['type']} is not supported.",
                     )
                     continue

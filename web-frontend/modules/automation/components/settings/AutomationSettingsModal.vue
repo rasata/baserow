@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     left-sidebar
     left-sidebar-scrollable
     :content-padding="
@@ -16,7 +17,11 @@
         <li v-for="setting in registeredSettings" :key="setting.getType()">
           <a
             class="modal-sidebar__nav-link"
-            :class="{ active: setting === settingSelected }"
+            :class="{
+              active:
+                settingSelected &&
+                setting.getType() === settingSelected.getType(),
+            }"
             @click="settingSelected = setting"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
@@ -42,7 +47,6 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import { defineComponent, ref, computed, watch, getCurrentInstance } from 'vue'
-import { useContext } from '@nuxtjs/composition-api'
 
 export default defineComponent({
   name: 'AutomationSettingsModal',
@@ -62,10 +66,11 @@ export default defineComponent({
       default: false,
     },
   },
+  emits: ['created'],
 
   setup(props, { emit }) {
     const instance = getCurrentInstance()
-    const { app } = useContext()
+    const app = useNuxtApp()
 
     const settingSelected = ref(null)
     const displaySelectedSettingForm = ref(false)

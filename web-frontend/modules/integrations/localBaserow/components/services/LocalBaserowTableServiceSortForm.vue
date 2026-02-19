@@ -1,6 +1,6 @@
 <template>
-  <div v-if="value">
-    <div v-if="value.length === 0" class="sortings__none">
+  <div v-if="modelValue">
+    <div v-if="modelValue.length === 0" class="sortings__none">
       <div class="sortings__none-title">
         {{ $t('localBaserowTableServiceSortForm.noSortTitle') }}
       </div>
@@ -8,12 +8,16 @@
         {{ $t('localBaserowTableServiceSortForm.noSortText') }}
       </div>
     </div>
-    <div v-if="value.length > 0" v-auto-overflow-scroll class="sortings__items">
+    <div
+      v-if="modelValue.length > 0"
+      v-auto-overflow-scroll
+      class="sortings__items"
+    >
       <div
-        v-for="(sort, index) in value"
+        v-for="(sort, index) in modelValue"
         :key="sort.id"
         class="sortings__item"
-        :set="(field = getField(sort.field))"
+        :set="field = getField(sort.field)"
       >
         <a
           v-if="!disableSort"
@@ -33,12 +37,12 @@
 
         <template v-else>
           <div class="sortings__description">
-            <template v-if="index === 0">{{
-              $t('localBaserowTableServiceSortForm.sortBy')
-            }}</template>
-            <template v-if="index > 0">{{
-              $t('localBaserowTableServiceSortForm.thenBy')
-            }}</template>
+            <template v-if="index === 0">
+              {{ $t('localBaserowTableServiceSortForm.sortBy') }}
+            </template>
+            <template v-if="index > 0">
+              {{ $t('localBaserowTableServiceSortForm.thenBy') }}
+            </template>
           </div>
           <div class="sortings__field">
             <Dropdown
@@ -111,21 +115,21 @@
         </template>
       </div>
     </div>
-    <template v-if="value.length < availableFieldsLength && !disableSort">
+    <template v-if="modelValue.length < availableFieldsLength && !disableSort">
       <div ref="addContextToggle">
         <ButtonText
           type="secondary"
           size="small"
           icon="iconoir-plus"
           @click="
-            $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 2)
+            $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
           "
         >
           {{ $t('localBaserowTableServiceSortForm.addSort') }}
         </ButtonText>
       </div>
       <Context
-        ref="addContext"
+        ref="context"
         class="sortings__add-context"
         overflow-scroll
         max-height-if-outside-viewport
@@ -158,7 +162,7 @@ export default {
   name: 'LocalBaserowTableServiceSortForm',
   mixins: [context],
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -172,6 +176,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update:modelValue'],
   computed: {
     /**
      * Calculates the total amount of available fields.
@@ -209,32 +214,32 @@ export default {
       return undefined
     },
     isFieldAvailable(field) {
-      const allFieldIds = this.value.map((sort) => sort.field)
+      const allFieldIds = this.modelValue.map((sort) => sort.field)
       return this.getCanSortInView(field) && !allFieldIds.includes(field.id)
     },
     addSort(field) {
-      this.$refs.addContext.hide()
-      const newSortings = [...this.value]
+      this.$refs.context.hide()
+      const newSortings = [...this.modelValue]
       newSortings.push({
         field: field.id,
         order_by: 'ASC',
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     deleteSort(sort) {
-      const newSortings = this.value.filter(({ field }) => {
+      const newSortings = this.modelValue.filter(({ field }) => {
         return field !== sort.field
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     updateSort(sort, values) {
-      const newSortings = this.value.map((sortConf) => {
+      const newSortings = this.modelValue.map((sortConf) => {
         if (sortConf.field === sort.field) {
           return { ...sortConf, ...values }
         }
         return sortConf
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     getSortIndicator(field, index) {
       return this.getFieldType(field).getSortIndicator(field)[index]
